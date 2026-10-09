@@ -1,0 +1,1 @@
+package com.nextrade.common.enumtype; public enum OrderType { MARKET, LIMIT, STOP_LOSS, STOP_LIMIT; public boolean requiresLimitPrice(){return this==LIMIT||this==STOP_LIMIT;} public boolean requiresStopPrice(){return this==STOP_LOSS||this==STOP_LIMIT;} public boolean isStop(){return requiresStopPrice();} }

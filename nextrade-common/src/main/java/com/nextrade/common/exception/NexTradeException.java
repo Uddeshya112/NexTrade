@@ -1,0 +1,1 @@
+package com.nextrade.common.exception; public class NexTradeException extends RuntimeException { public NexTradeException(String message){super(message);} public NexTradeException(String message,Throwable cause){super(message,cause);} }

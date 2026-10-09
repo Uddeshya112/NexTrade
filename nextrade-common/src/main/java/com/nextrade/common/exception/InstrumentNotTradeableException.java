@@ -1,0 +1,1 @@
+package com.nextrade.common.exception; public class InstrumentNotTradeableException extends RuntimeException { public InstrumentNotTradeableException(String message){super(message);} public InstrumentNotTradeableException(String message,Throwable cause){super(message,cause);} }

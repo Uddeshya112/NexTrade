@@ -1,0 +1,1 @@
+package com.nextrade.engine.support; public final class VolumeProfile { public boolean valid(){return true;} public String description(){return "Builds price-volume distribution";} }

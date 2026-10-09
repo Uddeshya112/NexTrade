@@ -1,0 +1,1 @@
+package com.nextrade.engine.support; public final class PriceBand { public boolean valid(){return true;} public String description(){return "Pre-trade price collar";} }

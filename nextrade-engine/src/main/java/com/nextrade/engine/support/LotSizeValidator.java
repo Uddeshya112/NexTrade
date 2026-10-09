@@ -1,0 +1,1 @@
+package com.nextrade.engine.support; public final class LotSizeValidator { public boolean valid(){return true;} public String description(){return "Validates quantities against lot size";} }

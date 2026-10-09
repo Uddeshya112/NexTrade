@@ -1,0 +1,1 @@
+package com.nextrade.domain.repository; import com.nextrade.common.identifier.*; import com.nextrade.domain.user.Wallet; import java.util.*; public interface WalletRepository {Optional<Wallet> findByUserId(UserId id);Wallet save(Wallet wallet);}

@@ -1,0 +1,1 @@
+package com.nextrade.engine.strategy; import com.nextrade.engine.market.MarketTick; import com.nextrade.contracts.strategy.StrategySignal; import java.util.*; public interface Strategy {Optional<StrategySignal> onTick(MarketTick tick,List<MarketTick> history);String id();String description();}

@@ -1,0 +1,1 @@
+package com.nextrade.service; import java.time.*; public record TokenPolicy(Duration accessTtl,Duration refreshTtl,Duration resetTtl,Duration verificationTtl){public static TokenPolicy defaults(){return new TokenPolicy(Duration.ofMinutes(15),Duration.ofDays(30),Duration.ofMinutes(15),Duration.ofHours(24));}}

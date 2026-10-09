@@ -1,0 +1,1 @@
+package com.nextrade.common.exception; public class ConcurrentCommandException extends RuntimeException { public ConcurrentCommandException(String message){super(message);} public ConcurrentCommandException(String message,Throwable cause){super(message,cause);} }

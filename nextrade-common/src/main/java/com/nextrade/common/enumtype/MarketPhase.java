@@ -1,0 +1,1 @@
+package com.nextrade.common.enumtype; public enum MarketPhase { PRE_OPEN, OPEN, AUCTION, CLOSED, HALTED }

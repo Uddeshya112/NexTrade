@@ -1,0 +1,1 @@
+package com.nextrade.service; import java.time.*; public record RateLimitDecision(boolean allowed,long remaining,Instant retryAt){public static RateLimitDecision allow(long r){return new RateLimitDecision(true,r,null);}public static RateLimitDecision deny(Instant retryAt){return new RateLimitDecision(false,0,retryAt);}}

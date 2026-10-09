@@ -1,0 +1,1 @@
+package com.nextrade.common.enumtype; public enum UserRole { TRADER, ADMIN, RISK_MANAGER, SUPPORT }

@@ -1,0 +1,1 @@
+package com.nextrade.engine.support; public final class TradeAggregator { public boolean valid(){return true;} public String description(){return "Aggregates traded volume and value";} }

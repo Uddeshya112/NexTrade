@@ -1,0 +1,1 @@
+package com.nextrade.common.enumtype; public enum RiskSeverity { INFO, WARNING, BLOCK }

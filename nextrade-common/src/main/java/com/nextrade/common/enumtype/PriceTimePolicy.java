@@ -1,0 +1,1 @@
+package com.nextrade.common.enumtype; public enum PriceTimePolicy { PRICE_THEN_TIME; public int comparison(OrderSide side){return side==OrderSide.BUY?-1:1;} }

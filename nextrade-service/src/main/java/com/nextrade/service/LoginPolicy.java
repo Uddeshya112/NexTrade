@@ -1,0 +1,1 @@
+package com.nextrade.service; import java.time.*; public record LoginPolicy(int maxAttempts,Duration lockout){public LoginPolicy{if(maxAttempts<1)throw new IllegalArgumentException("maxAttempts");if(lockout.isNegative()||lockout.isZero())throw new IllegalArgumentException("lockout");}public static LoginPolicy defaults(){return new LoginPolicy(5,Duration.ofMinutes(15));}}

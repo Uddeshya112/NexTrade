@@ -1,0 +1,1 @@
+package com.nextrade.common.enumtype; public enum InstrumentStatus { ACTIVE, SUSPENDED, DELISTED; public boolean isTradeable(){return this==ACTIVE;} }

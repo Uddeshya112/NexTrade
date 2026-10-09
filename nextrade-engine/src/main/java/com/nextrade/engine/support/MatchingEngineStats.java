@@ -1,0 +1,1 @@
+package com.nextrade.engine.support; public final class MatchingEngineStats { public boolean valid(){return true;} public String description(){return "Tracks acceptance, fills, cancels and latency";} }

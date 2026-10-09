@@ -1,0 +1,1 @@
+package com.nextrade.common.util; import java.time.*; public final class TimeBuckets {private TimeBuckets(){} public static long epochMinute(Instant i){return i.getEpochSecond()/60;} public static long epochSecond(Instant i){return i.getEpochSecond();} public static Instant floorMinute(Instant i){long s=i.getEpochSecond()-i.getEpochSecond()%60;return Instant.ofEpochSecond(s);}}

@@ -1,0 +1,1 @@
+package com.nextrade.engine.matching; import com.nextrade.domain.order.Order; public final class OrderPriority {private OrderPriority(){} public static int compare(Order a,Order b){int c=Long.compare(a.sequence(),b.sequence());return c;}}

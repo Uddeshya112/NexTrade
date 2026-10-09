@@ -1,0 +1,1 @@
+package com.nextrade.service.ports; import com.nextrade.common.event.DomainEvent; public interface EventOutbox {void append(DomainEvent event);default void appendAll(java.util.Collection<? extends DomainEvent> events){for(DomainEvent e:events)append(e);}}

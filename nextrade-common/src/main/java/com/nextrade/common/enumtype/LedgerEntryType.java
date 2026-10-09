@@ -1,0 +1,1 @@
+package com.nextrade.common.enumtype; public enum LedgerEntryType { DEPOSIT, WITHDRAWAL, TRADE_DEBIT, TRADE_CREDIT, FEE, TAX, RESERVATION, RELEASE, ADJUSTMENT }

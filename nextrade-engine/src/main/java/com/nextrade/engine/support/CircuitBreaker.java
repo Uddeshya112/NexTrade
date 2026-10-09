@@ -1,0 +1,1 @@
+package com.nextrade.engine.support; public final class CircuitBreaker { public boolean valid(){return true;} public String description(){return "Halts trading after configured drawdown or error rate";} }

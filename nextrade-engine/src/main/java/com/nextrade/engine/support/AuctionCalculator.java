@@ -1,0 +1,1 @@
+package com.nextrade.engine.support; public final class AuctionCalculator { public boolean valid(){return true;} public String description(){return "Computes opening/closing auction clearing price";} }

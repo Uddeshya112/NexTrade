@@ -1,0 +1,1 @@
+package com.nextrade.common.enumtype; public enum TimeInForce { DAY, GTC, IOC, FOK; public boolean canRest(){return this==DAY||this==GTC;} }

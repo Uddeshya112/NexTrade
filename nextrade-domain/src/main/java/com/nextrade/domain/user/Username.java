@@ -1,0 +1,1 @@
+package com.nextrade.domain.user; public record Username(String value){public Username{if(value==null||!value.matches("[A-Za-z0-9_]{3,50}"))throw new IllegalArgumentException("Invalid username");value=value.toLowerCase(java.util.Locale.ROOT);}}

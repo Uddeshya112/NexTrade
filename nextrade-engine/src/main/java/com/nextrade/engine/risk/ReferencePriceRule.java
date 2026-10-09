@@ -1,0 +1,1 @@
+package com.nextrade.engine.risk; public final class ReferencePriceRule implements RiskRule { public RiskDecision evaluate(RiskContext c){return c.referencePrice()!=null&&!c.referencePrice().isZero()?RiskDecision.allow():RiskDecision.block("NO_REFERENCE_PRICE","Reference price unavailable");} public String name(){return "REFERENCE_PRICE";} }

@@ -1,0 +1,9 @@
+package com.nextrade.domain.instrument;
+import com.nextrade.common.enumtype.*; import com.nextrade.common.identifier.*; import com.nextrade.common.valueobject.*; import com.nextrade.domain.shared.*; import java.math.*; import java.util.*;
+public final class Instrument extends AbstractAggregateRoot<InstrumentId> {
+ private final Symbol symbol; private final String name; private final String exchange; private final String currency; private final int lotSize; private final Price tickSize; private InstrumentStatus status;
+ public Instrument(InstrumentId id,Symbol symbol,String name,String exchange,String currency,int lotSize,Price tickSize,InstrumentStatus status){super(id);this.symbol=Objects.requireNonNull(symbol);this.name=Objects.requireNonNull(name);this.exchange=Objects.requireNonNull(exchange);this.currency=Objects.requireNonNull(currency);if(lotSize<1)throw new IllegalArgumentException("lotSize");this.lotSize=lotSize;this.tickSize=Objects.requireNonNull(tickSize);this.status=Objects.requireNonNull(status);}
+ public static Instrument create(String symbol,String name,String exchange,String currency,int lotSize,BigDecimal tick){return new Instrument(InstrumentId.generate(),new Symbol(symbol),name,exchange,currency,lotSize,new Price(tick, tick),InstrumentStatus.ACTIVE);}
+ public boolean tradeable(){return status.isTradeable();} public void suspend(){status=InstrumentStatus.SUSPENDED;} public void resume(){status=InstrumentStatus.ACTIVE;} public void delist(){status=InstrumentStatus.DELISTED;}
+ public Symbol symbol(){return symbol;} public String name(){return name;} public String exchange(){return exchange;} public String currency(){return currency;} public int lotSize(){return lotSize;} public Price tickSize(){return tickSize;} public InstrumentStatus status(){return status;}
+}
