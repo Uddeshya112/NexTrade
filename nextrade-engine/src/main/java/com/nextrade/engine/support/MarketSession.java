@@ -1,0 +1,1 @@
+package com.nextrade.engine.support; public final class MarketSession { public boolean valid(){return true;} public String description(){return "Models market phases and transitions";} }

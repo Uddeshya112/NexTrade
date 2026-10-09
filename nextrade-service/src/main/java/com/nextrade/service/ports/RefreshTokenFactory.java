@@ -1,0 +1,1 @@
+package com.nextrade.service.ports; import com.nextrade.common.identifier.*; public interface RefreshTokenFactory {String issue(UserId userId,SessionId sessionId);TokenClaims parse(String token);record TokenClaims(UserId userId,SessionId sessionId,java.time.Instant expiresAt){}}

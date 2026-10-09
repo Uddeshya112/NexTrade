@@ -1,0 +1,1 @@
+package com.nextrade.common.util; public record Pagination(int page,int size){public Pagination{if(page<0)throw new IllegalArgumentException("page");if(size<1||size>500)throw new IllegalArgumentException("size");}public int offset(){return page*size;}}

@@ -1,0 +1,1 @@
+package com.nextrade.common.enumtype; public enum SessionStatus { ACTIVE, REVOKED, ROTATED, EXPIRED }

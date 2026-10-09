@@ -1,0 +1,11 @@
+package com.nextrade.domain.user;
+import com.nextrade.common.enumtype.*; import com.nextrade.common.exception.*; import com.nextrade.common.identifier.*; import com.nextrade.common.valueobject.*; import com.nextrade.domain.shared.*; import java.util.*;
+public final class Wallet extends AbstractAggregateRoot<WalletId>{ private final UserId userId; private final java.util.Currency currency; private Money available; private Money reserved;
+ public Wallet(WalletId id,UserId userId,java.util.Currency currency,Money available,Money reserved){super(id);this.userId=userId;this.currency=currency;this.available=available;this.reserved=reserved;if(!available.currency().equals(currency)||!reserved.currency().equals(currency))throw new IllegalArgumentException("Currency mismatch");}
+ public static Wallet create(UserId user,java.util.Currency currency){return new Wallet(WalletId.generate(),user,currency,Money.zero(currency),Money.zero(currency));}
+ public void deposit(Money amount){same(amount);available=available.add(amount);touch();} public void withdraw(Money amount){same(amount);if(available.compareTo(amount)<0)throw new InsufficientFundsException("Insufficient available funds");available=available.subtract(amount);touch();}
+ public void reserve(Money amount){same(amount);if(available.compareTo(amount)<0)throw new InsufficientFundsException("Insufficient available funds");available=available.subtract(amount);reserved=reserved.add(amount);touch();}
+ public void release(Money amount){same(amount);if(reserved.compareTo(amount)<0)throw new IllegalArgumentException("Release exceeds reservation");reserved=reserved.subtract(amount);available=available.add(amount);touch();}
+ public void consumeReserved(Money amount){same(amount);if(reserved.compareTo(amount)<0)throw new IllegalArgumentException("Consume exceeds reservation");reserved=reserved.subtract(amount);touch();}
+ private void same(Money amount){if(!currency.equals(amount.currency()))throw new IllegalArgumentException("Currency mismatch");}
+ public UserId userId(){return userId;} public java.util.Currency currency(){return currency;} public Money available(){return available;} public Money reserved(){return reserved;} public Money total(){return available.add(reserved);}}

@@ -1,0 +1,1 @@
+package com.nextrade.common.enumtype; public enum UserStatus { ACTIVE, SUSPENDED, PENDING_VERIFICATION; public boolean isLoginAllowed(){return this==ACTIVE;} }

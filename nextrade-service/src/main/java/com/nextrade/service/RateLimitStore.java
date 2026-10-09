@@ -1,0 +1,1 @@
+package com.nextrade.service; public interface RateLimitStore {RateLimitDecision tryConsume(String key,int capacity,java.time.Duration window);}

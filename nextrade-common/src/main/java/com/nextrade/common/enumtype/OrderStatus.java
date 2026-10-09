@@ -1,0 +1,1 @@
+package com.nextrade.common.enumtype; public enum OrderStatus { NEW, PARTIALLY_FILLED, FILLED, CANCELLED, REJECTED, EXPIRED; public boolean isActive(){return this==NEW||this==PARTIALLY_FILLED;} public boolean isTerminal(){return !isActive();} }

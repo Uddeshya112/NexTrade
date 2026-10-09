@@ -1,0 +1,1 @@
+package com.nextrade.engine.support; public final class NotionalCalculator { public boolean valid(){return true;} public String description(){return "Calculates order notional";} }

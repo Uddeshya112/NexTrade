@@ -1,0 +1,2 @@
+package com.nextrade.domain.ledger; import com.nextrade.common.enumtype.*; import com.nextrade.common.identifier.*; import com.nextrade.common.valueobject.*; import java.time.*;
+public record LedgerEntry(LedgerEntryId id,UserId userId,LedgerEntryType type,Money amount,String reference,Instant occurredAt){public LedgerEntry{if(amount==null)throw new IllegalArgumentException("amount");if(reference==null||reference.isBlank())throw new IllegalArgumentException("reference");if(occurredAt==null)occurredAt=Instant.now();}}

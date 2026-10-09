@@ -1,0 +1,1 @@
+package com.nextrade.domain.market; import com.nextrade.common.enumtype.*; import com.nextrade.common.identifier.*; import com.nextrade.common.valueobject.*; import java.time.*; public record MarketState(InstrumentId instrumentId,Price lastTrade,Price bestBid,Price bestAsk,MarketPhase phase,Instant timestamp){public boolean open(){return phase==MarketPhase.OPEN;}}

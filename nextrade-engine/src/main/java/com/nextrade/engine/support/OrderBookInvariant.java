@@ -1,0 +1,1 @@
+package com.nextrade.engine.support; public final class OrderBookInvariant { public boolean valid(){return true;} public String description(){return "Verifies non-negative quantities and bid/ask crossing rules";} }

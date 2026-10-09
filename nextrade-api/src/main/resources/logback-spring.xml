@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <springProperty scope="context" name="appName" source="spring.application.name"/>
+    <springProperty scope="context" name="logLevel" source="logging.level.root" defaultValue="INFO"/>
+    <springProperty scope="context" name="logPath" source="logging.file.path" defaultValue="./logs"/>
+
+    <property name="CONSOLE_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
+    <property name="FILE_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
+    <property name="JSON_PATTERN" value='{"timestamp":"%d{yyyy-MM-dd&apos;T&apos;HH:mm:ss.SSSXXX}","level":"%level","thread":"%thread","logger":"%logger{36}","message":"%msg","requestId":"%X{requestId}","userId":"%X{userId}"}%n'/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder><pattern>${CONSOLE_PATTERN}</pattern></encoder>
+    </appender>
+
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${logPath}/${appName}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${logPath}/${appName}-%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder><pattern>${FILE_PATTERN}</pattern></encoder>
+    </appender>
+
+    <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${logPath}/${appName}-json.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${logPath}/${appName}-json-%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <customFields>{"service":"${appName}","environment":"${spring.profiles.active:dev}"}</customFields>
+        </encoder>
+    </appender>
+
+    <appender name="ASYNC_CONSOLE" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="CONSOLE"/><queueSize>512</queueSize><neverBlock>true</neverBlock>
+    </appender>
+    <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="FILE"/><queueSize>1024</queueSize><neverBlock>true</neverBlock>
+    </appender>
+    <appender name="ASYNC_JSON" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="JSON_FILE"/><queueSize>1024</queueSize><neverBlock>true</neverBlock>
+    </appender>
+
+    <turboFilter class="ch.qos.logback.classic.turbo.MDCInsertingServletFilterTurboFilter"/>
+
+    <root level="${logLevel}">
+        <appender-ref ref="ASYNC_CONSOLE"/><appender-ref ref="ASYNC_FILE"/><appender-ref ref="ASYNC_JSON"/>
+    </root>
+
+    <logger name="org.springframework.web" level="WARN"/>
+    <logger name="org.hibernate.SQL" level="DEBUG"/>
+    <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE"/>
+    <logger name="com.nextrade" level="DEBUG"/>
+    <logger name="io.netty" level="WARN"/>
+</configuration>

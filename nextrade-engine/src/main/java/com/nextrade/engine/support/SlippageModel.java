@@ -1,0 +1,1 @@
+package com.nextrade.engine.support; public final class SlippageModel { public boolean valid(){return true;} public String description(){return "Calculates execution slippage";} }

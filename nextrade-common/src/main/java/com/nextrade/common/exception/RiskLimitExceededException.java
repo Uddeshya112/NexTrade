@@ -1,0 +1,1 @@
+package com.nextrade.common.exception; public class RiskLimitExceededException extends RuntimeException { public RiskLimitExceededException(String message){super(message);} public RiskLimitExceededException(String message,Throwable cause){super(message,cause);} }

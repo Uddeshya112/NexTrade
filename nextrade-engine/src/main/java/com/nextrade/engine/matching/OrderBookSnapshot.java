@@ -1,0 +1,1 @@
+package com.nextrade.engine.matching; import com.nextrade.common.valueobject.*; import java.util.*; public record OrderBookSnapshot(List<PriceLevel> bids,List<PriceLevel> asks,Optional<Price> lastTradePrice,Optional<Price> bestBid,Optional<Price> bestAsk,long sequence){public OrderBookSnapshot{bids=List.copyOf(bids);asks=List.copyOf(asks);}}

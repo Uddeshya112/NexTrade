@@ -1,0 +1,1 @@
+package com.nextrade.domain.repository; import com.nextrade.common.identifier.*; import com.nextrade.domain.portfolio.Portfolio; import java.util.*; public interface PortfolioRepository {Optional<Portfolio> findByUserId(UserId id);Portfolio save(Portfolio p);}

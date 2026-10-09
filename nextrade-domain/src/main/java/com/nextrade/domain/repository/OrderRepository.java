@@ -1,0 +1,1 @@
+package com.nextrade.domain.repository; import com.nextrade.common.identifier.*; import com.nextrade.domain.order.Order; import java.util.*; public interface OrderRepository {Optional<Order> findById(OrderId id);List<Order> findOpenByInstrument(InstrumentId id);Order save(Order order);}

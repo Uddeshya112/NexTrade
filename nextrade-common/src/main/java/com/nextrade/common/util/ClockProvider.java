@@ -1,0 +1,1 @@
+package com.nextrade.common.util; import java.time.*; public interface ClockProvider { Instant now(); LocalDate today(); static ClockProvider system(){Clock c=Clock.systemUTC();return new ClockProvider(){public Instant now(){return Instant.now(c);}public LocalDate today(){return LocalDate.now(c);}};} }

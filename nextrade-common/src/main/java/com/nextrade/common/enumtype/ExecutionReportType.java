@@ -1,0 +1,1 @@
+package com.nextrade.common.enumtype; public enum ExecutionReportType { ACCEPTED, PARTIAL_FILL, FILLED, CANCELLED, REJECTED, EXPIRED, TRIGGERED }

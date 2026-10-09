@@ -1,0 +1,1 @@
+package com.nextrade.engine.matching; import com.nextrade.common.enumtype.OrderSide; import com.nextrade.common.valueobject.Price; public final class StopTriggerPolicy {private StopTriggerPolicy(){} public static boolean triggered(OrderSide side,Price last,Price trigger){if(last==null)return false;return side==OrderSide.BUY?last.compareTo(trigger)>=0:last.compareTo(trigger)<=0;}}

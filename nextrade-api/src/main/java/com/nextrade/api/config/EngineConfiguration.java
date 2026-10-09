@@ -1,0 +1,1 @@
+package com.nextrade.api.config; import com.nextrade.engine.matching.MatchingEngine; import org.springframework.context.annotation.*; @Configuration public class EngineConfiguration {@Bean(destroyMethod="close") public MatchingEngine matchingEngine(){return new MatchingEngine(4,t->{});}}

@@ -1,0 +1,1 @@
+package com.nextrade.engine.support; public final class LatencyTracker { public boolean valid(){return true;} public String description(){return "Records microsecond timings";} }

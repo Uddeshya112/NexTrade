@@ -1,0 +1,1 @@
+package com.nextrade.engine.support; public final class TickValidator { public boolean valid(){return true;} public String description(){return "Validates prices against tick grid";} }

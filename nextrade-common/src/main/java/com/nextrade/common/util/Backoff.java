@@ -1,0 +1,1 @@
+package com.nextrade.common.util; import java.time.Duration; public final class Backoff {private Backoff(){} public static Duration exponential(int attempt,Duration min,Duration max){long f=1L<<Math.min(attempt,30);Duration d=min.multipliedBy(f);return d.compareTo(max)>0?max:d;}}

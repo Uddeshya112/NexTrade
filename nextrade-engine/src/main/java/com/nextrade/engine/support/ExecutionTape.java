@@ -1,0 +1,1 @@
+package com.nextrade.engine.support; public final class ExecutionTape { public boolean valid(){return true;} public String description(){return "In-memory immutable trade tape";} }

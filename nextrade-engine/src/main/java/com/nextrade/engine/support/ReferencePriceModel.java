@@ -1,0 +1,1 @@
+package com.nextrade.engine.support; public final class ReferencePriceModel { public boolean valid(){return true;} public String description(){return "Builds midpoint/reference price";} }

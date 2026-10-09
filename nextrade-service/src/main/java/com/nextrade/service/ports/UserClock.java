@@ -1,0 +1,1 @@
+package com.nextrade.service.ports; import java.time.*; public interface UserClock {Instant now();default Duration lockout(){return Duration.ofMinutes(15);}}
