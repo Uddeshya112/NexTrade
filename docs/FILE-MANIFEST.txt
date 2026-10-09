@@ -1,5 +1,6 @@
 .gitignore
 .vscode/settings.json
+CHANGELOG.md
 FILE-MANIFEST.md
 README.md
 STRUCTURE.md
@@ -7,10 +8,13 @@ build.sh
 docker-compose.yml
 docs/ARCHITECTURE.md
 docs/CURRENT-PASTE-MANIFEST.md
+docs/ERROR-RESOLUTION-REPORT.md
 docs/ERRORS-FIXED-FROM-VSCODE-DIAGNOSTICS.md
 docs/FILE-MANIFEST.txt
 docs/FINAL-VERIFICATION-REPORT.md
+docs/LATEST-PASTE-RECONCILIATION.md
 docs/RECONCILIATION-OF-PREVIOUS-GENERATED-MATERIAL.md
+docs/REPAIR-STATUS.md
 docs/ROADMAP.md
 docs/STRUCTURING-AND-PROVENANCE.md
 docs/UPDATE-CHANGELOG-20261009.md
@@ -18,6 +22,7 @@ docs/VERIFICATION-STATUS.md
 docs/historical/README-HISTORICAL.txt
 docs/input/Pasted-text-20261008-214506.txt
 docs/input/Pasted-text-20261009-032456.txt
+docs/input/Pasted-text-20261009-060705.txt
 docs/input/vscode-diagnostics-20261009.json
 nextrade-api/Dockerfile
 nextrade-api/pom.xml
@@ -163,6 +168,7 @@ nextrade-domain/src/main/java/com/nextrade/domain/order/OrderInstruction.java
 nextrade-domain/src/main/java/com/nextrade/domain/order/Trade.java
 nextrade-domain/src/main/java/com/nextrade/domain/portfolio/Holding.java
 nextrade-domain/src/main/java/com/nextrade/domain/portfolio/Portfolio.java
+nextrade-domain/src/main/java/com/nextrade/domain/repository/EventOutbox.java
 nextrade-domain/src/main/java/com/nextrade/domain/repository/InstrumentRepository.java
 nextrade-domain/src/main/java/com/nextrade/domain/repository/OrderRepository.java
 nextrade-domain/src/main/java/com/nextrade/domain/repository/PortfolioRepository.java
@@ -571,6 +577,7 @@ nextrade-integration-tests/src/test/java/com/nextrade/tests/WebSocketSendAuthent
 nextrade-integration-tests/src/test/java/com/nextrade/tests/WebhookSignatureTest.java
 nextrade-persistence/pom.xml
 nextrade-persistence/src/main/java/com/nextrade/persistence/adapter/InMemoryRepositoryAdapter.java
+nextrade-persistence/src/main/java/com/nextrade/persistence/adapter/InstrumentRepositoryAdapter.java
 nextrade-persistence/src/main/java/com/nextrade/persistence/adapter/MoneyAttributeConverter.java
 nextrade-persistence/src/main/java/com/nextrade/persistence/adapter/OrderRepositoryAdapter.java
 nextrade-persistence/src/main/java/com/nextrade/persistence/adapter/OutboxRepositoryAdapter.java
@@ -598,6 +605,7 @@ nextrade-persistence/src/main/java/com/nextrade/persistence/entity/WalletJpaEnti
 nextrade-persistence/src/main/java/com/nextrade/persistence/repository/EmailVerificationJpaRepository.java
 nextrade-persistence/src/main/java/com/nextrade/persistence/repository/EmailVerificationTokenJpaRepository.java
 nextrade-persistence/src/main/java/com/nextrade/persistence/repository/IdempotencyJpaRepository.java
+nextrade-persistence/src/main/java/com/nextrade/persistence/repository/InstrumentJpaRepository.java
 nextrade-persistence/src/main/java/com/nextrade/persistence/repository/OrderJpaRepository.java
 nextrade-persistence/src/main/java/com/nextrade/persistence/repository/OutboxEventRepository.java
 nextrade-persistence/src/main/java/com/nextrade/persistence/repository/OutboxJpaRepository.java
@@ -608,6 +616,7 @@ nextrade-persistence/src/main/java/com/nextrade/persistence/repository/UserSessi
 nextrade-persistence/src/main/java/com/nextrade/persistence/repository/WalletJpaRepository.java
 nextrade-persistence/src/main/resources/db/migration/V1__init_schema.sql
 nextrade-persistence/src/main/resources/db/migration/V2__atomic_auth.sql
+nextrade-persistence/src/main/resources/db/migration/V3__order_audit_timestamps.sql
 nextrade-service/pom.xml
 nextrade-service/src/main/java/com/nextrade/service/Argon2PasswordHasher.java
 nextrade-service/src/main/java/com/nextrade/service/AuditService.java
@@ -689,7 +698,6 @@ nextrade-service/src/main/java/com/nextrade/service/policy/VerificationPolicy.ja
 nextrade-service/src/main/java/com/nextrade/service/policy/WebSocketPolicy.java
 nextrade-service/src/main/java/com/nextrade/service/ports/AccessTokenIssuer.java
 nextrade-service/src/main/java/com/nextrade/service/ports/AuthChallengeRepository.java
-nextrade-service/src/main/java/com/nextrade/service/ports/EventOutbox.java
 nextrade-service/src/main/java/com/nextrade/service/ports/PasswordHasher.java
 nextrade-service/src/main/java/com/nextrade/service/ports/RefreshTokenFactory.java
 nextrade-service/src/main/java/com/nextrade/service/ports/SessionRepository.java

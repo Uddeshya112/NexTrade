@@ -1,6 +1,6 @@
 package com.nextrade.client.security;
 
-import com.nextrade.common.identifier.UserId;
+import com.nextrade.common.identifier.Identifier;
 import com.nextrade.common.enumtype.UserRole;
 import javafx.beans.property.*;
 
@@ -10,7 +10,7 @@ public final class AuthContext {
     private final BooleanProperty authenticated = new SimpleBooleanProperty(false);
     private final StringProperty accessToken = new SimpleStringProperty();
     private final StringProperty refreshToken = new SimpleStringProperty();
-    private final ObjectProperty<UserId> userId = new SimpleObjectProperty<>();
+    private final ObjectProperty<com.nextrade.common.identifier.UserId> userId = new SimpleObjectProperty<>();
     private final StringProperty username = new SimpleStringProperty();
     private final ObjectProperty<UserRole> userRole = new SimpleObjectProperty<>();
     private final StringProperty userEmail = new SimpleStringProperty();
@@ -29,8 +29,8 @@ public final class AuthContext {
     public String getAccessToken() { return accessToken.get(); }
     public StringProperty refreshTokenProperty() { return refreshToken; }
     public String getRefreshToken() { return refreshToken.get(); }
-    public ObjectProperty<UserId> userIdProperty() { return userId; }
-    public UserId getUserId() { return userId.get(); }
+    public ObjectProperty<com.nextrade.common.identifier.UserId> userIdProperty() { return userId; }
+    public com.nextrade.common.identifier.UserId getUserId() { return userId.get(); }
     public StringProperty usernameProperty() { return username; }
     public String getUsername() { return username.get(); }
     public ObjectProperty<UserRole> userRoleProperty() { return userRole; }
@@ -48,7 +48,7 @@ public final class AuthContext {
     public boolean isTrader() { return UserRole.TRADER.equals(userRole.get()); }
     public boolean isActive() { return "ACTIVE".equals(userStatus.get()); }
 
-    public void setAuthenticated(String accessToken, String refreshToken, UserId userId, String username, UserRole role, String email, String status, boolean rememberMe) {
+    public void setAuthenticated(String accessToken, String refreshToken, com.nextrade.common.identifier.UserId userId, String username, UserRole role, String email, String status, boolean rememberMe) {
         this.accessToken.set(accessToken);
         this.refreshToken.set(refreshToken);
         this.userId.set(userId);

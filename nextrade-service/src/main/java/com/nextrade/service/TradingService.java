@@ -42,7 +42,7 @@ public class TradingService {
     private final OutboxEventPublisher outboxPublisher;
 
     @Transactional
-    public CompletableFuture<OrderResponse> placeOrder(OrderRequest request, Identifier.UserId userId) {
+    public CompletableFuture<OrderResponse> placeOrder(OrderRequest request, com.nextrade.common.identifier.UserId userId) {
         User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
         if (!user.isActive()) throw new IllegalStateException("User account not active");
 
@@ -54,7 +54,7 @@ public class TradingService {
         Portfolio portfolio = portfolioRepository.findByUserId(userId).orElseThrow(() -> new IllegalStateException("Portfolio not found"));
         Wallet wallet = walletRepository.findByUserId(userId).orElseThrow(() -> new IllegalStateException("Wallet not found"));
 
-        Map<Identifier.InstrumentId, Price> currentPrices = marketDataService.getCurrentPrices(Set.of(request.instrumentId()));
+        Map<com.nextrade.common.identifier.InstrumentId, Price> currentPrices = marketDataService.getCurrentPrices(Set.of(request.instrumentId()));
         RiskEngine.RiskContext riskCtx = new RiskEngine.RiskContext(
             userId, request.instrumentId(), request.side(), request.type(),
             request.quantity(), request.limitPrice(), request.stopPrice(),
@@ -97,7 +97,7 @@ public class TradingService {
     }
 
     @Transactional
-    public CompletableFuture<OrderResponse.CancelResult> cancelOrder(Identifier.OrderId orderId, Identifier.UserId userId) {
+    public CompletableFuture<OrderResponse.CancelResult> cancelOrder(com.nextrade.common.identifier.OrderId orderId, com.nextrade.common.identifier.UserId userId) {
         Order order = orderRepository.findById(orderId).orElseThrow(() -> new OrderNotFoundException("Order not found: " + orderId));
         if (!order.getUser().getId().equals(userId)) throw new SecurityException("Unauthorized");
         if (order.getStatus().isTerminal()) return CompletableFuture.completedFuture(OrderResponse.CancelResult.alreadyTerminal(order.getStatus()));
@@ -113,7 +113,7 @@ public class TradingService {
     }
 
     @Transactional
-    public void onOrderCancelled(Identifier.OrderId orderId, Identifier.UserId userId, String reason) {
+    public void onOrderCancelled(com.nextrade.common.identifier.OrderId orderId, com.nextrade.common.identifier.UserId userId, String reason) {
         Order order = orderRepository.findById(orderId).orElseThrow();
         Wallet wallet = walletRepository.findByUserId(userId).orElseThrow();
         if (order.getSide() == OrderSide.BUY) {
@@ -158,16 +158,16 @@ public class TradingService {
     }
 
     @Transactional
-    public List<com.nextrade.service.TradingService.OrderSummary> getOrderHistory(Identifier.UserId userId, OrderStatus status, int page, int size) {
+    public List<com.nextrade.service.TradingService.OrderSummary> getOrderHistory(com.nextrade.common.identifier.UserId userId, OrderStatus status, int page, int size) {
         List<Order> orders = orderRepository.findByUserIdAndStatus(userId, status);
         return orders.stream().skip((long) page * size).limit(size).map(this::toSummary).toList();
     }
 
     @Transactional
-    public com.nextrade.service.TradingService.PortfolioSummary getPortfolioSummary(Identifier.UserId userId) {
+    public com.nextrade.service.TradingService.PortfolioSummary getPortfolioSummary(com.nextrade.common.identifier.UserId userId) {
         Portfolio portfolio = portfolioRepository.findByUserId(userId).orElseThrow(() -> new IllegalStateException("Portfolio not found"));
         Wallet wallet = walletRepository.findByUserId(userId).orElseThrow(() -> new IllegalStateException("Wallet not found"));
-        Map<Identifier.InstrumentId, Price> prices = marketDataService.getCurrentPrices(portfolio.getHoldings().stream().map(Holding::getInstrument).map(Instrument::getId).toList());
+        Map<com.nextrade.common.identifier.InstrumentId, Price> prices = marketDataService.getCurrentPrices(portfolio.getHoldings().stream().map(Holding::getInstrument).map(Instrument::getId).toList());
         Money totalEquity = portfolio.getTotalEquity(prices);
         Money unrealizedPnl = portfolio.getUnrealizedPnl(prices);
         Money availableCash = wallet.getAvailableBalance();
@@ -212,25 +212,25 @@ public class TradingService {
         };
     }
 
-    public record OrderRequest(Identifier.InstrumentId instrumentId, OrderSide side, OrderType type, Quantity quantity, Optional<Price> limitPrice, Optional<Price> stopPrice, TimeInForce timeInForce) {}
+    public record OrderRequest(com.nextrade.common.identifier.InstrumentId instrumentId, OrderSide side, OrderType type, Quantity quantity, Optional<Price> limitPrice, Optional<Price> stopPrice, TimeInForce timeInForce) {}
 
-    public record OrderResult(boolean success, Identifier.OrderId orderId, OrderStatus status, List<MatchingEngine.TradeExecution> trades, String errorMessage) {
-        public static OrderResponse placed(Identifier.OrderId orderId, OrderStatus status, List<MatchingEngine.TradeExecution> trades) { return new OrderResponse(true, orderId, status, trades, null); }
-        public static OrderResponse rejected(Identifier.OrderId orderId, String error) { return new OrderResponse(false, orderId, OrderStatus.REJECTED, List.of(), error); }
-        public static OrderResponse cancelled(Identifier.OrderId orderId) { return new OrderResponse(true, orderId, OrderStatus.CANCELLED, List.of(), null); }
-        public static OrderResponse pending(Identifier.OrderId orderId, String clientOrderId, OrderStatus status, List<MatchingEngine.TradeExecution> trades) { return new OrderResponse(true, orderId, status, trades, null); }
+    public record OrderResult(boolean success, com.nextrade.common.identifier.OrderId orderId, OrderStatus status, List<MatchingEngine.TradeExecution> trades, String errorMessage) {
+        public static OrderResponse placed(com.nextrade.common.identifier.OrderId orderId, OrderStatus status, List<MatchingEngine.TradeExecution> trades) { return new OrderResponse(true, orderId, status, trades, null); }
+        public static OrderResponse rejected(com.nextrade.common.identifier.OrderId orderId, String error) { return new OrderResponse(false, orderId, OrderStatus.REJECTED, List.of(), error); }
+        public static OrderResponse cancelled(com.nextrade.common.identifier.OrderId orderId) { return new OrderResponse(true, orderId, OrderStatus.CANCELLED, List.of(), null); }
+        public static OrderResponse pending(com.nextrade.common.identifier.OrderId orderId, String clientOrderId, OrderStatus status, List<MatchingEngine.TradeExecution> trades) { return new OrderResponse(true, orderId, status, trades, null); }
     }
 
-    public record CancelResult(boolean success, Identifier.OrderId orderId, String message) {
-        public static CancelResult success(Identifier.OrderId orderId) { return new CancelResult(true, orderId, "Cancelled"); }
-        public static CancelResult notFound(Identifier.OrderId orderId) { return new CancelResult(false, orderId, "Not found"); }
+    public record CancelResult(boolean success, com.nextrade.common.identifier.OrderId orderId, String message) {
+        public static CancelResult success(com.nextrade.common.identifier.OrderId orderId) { return new CancelResult(true, orderId, "Cancelled"); }
+        public static CancelResult notFound(com.nextrade.common.identifier.OrderId orderId) { return new CancelResult(false, orderId, "Not found"); }
         public static CancelResult alreadyTerminal(OrderStatus status) { return new CancelResult(false, null, "Already " + status); }
         public static CancelResult failed(String msg) { return new CancelResult(false, null, msg); }
     }
 
-    public record OrderSummary(Identifier.OrderId orderId, String symbol, OrderSide side, OrderType type, OrderStatus status, Quantity quantity, Quantity filledQuantity, Optional<Price> limitPrice, Optional<Price> avgFillPrice, Instant createdAt) {}
+    public record OrderSummary(com.nextrade.common.identifier.OrderId orderId, String symbol, OrderSide side, OrderType type, OrderStatus status, Quantity quantity, Quantity filledQuantity, Optional<Price> limitPrice, Optional<Price> avgFillPrice, Instant createdAt) {}
     public record PortfolioSummary(Money totalEquity, Money availableCash, Money reservedCash, Money realizedPnl, Money unrealizedPnl, List<HoldingSummary> holdings) {}
-    public record HoldingSummary(Identifier.InstrumentId instrumentId, String symbol, String name, Quantity quantity, Price avgBuyPrice, Price currentPrice, Money unrealizedPnl, Money realizedPnl) {}
+    public record HoldingSummary(com.nextrade.common.identifier.InstrumentId instrumentId, String symbol, String name, Quantity quantity, Price avgBuyPrice, Price currentPrice, Money unrealizedPnl, Money realizedPnl) {}
 
     private OrderSummary toSummary(Order order) { return new OrderSummary(order.getId(), order.getInstrument().getSymbol().getValue(), order.getSide(), order.getType(), order.getStatus(), order.getQuantity(), order.getFilledQuantity(), order.getLimitPrice(), order.getAvgFillPrice(), order.getCreatedAt()); }
     private HoldingSummary toHoldingSummary(com.nextrade.domain.portfolio.Holding holding, Price currentPrice) { Money unrealized = currentPrice != null ? holding.getUnrealizedPnl(currentPrice) : Money.zero(); return new HoldingSummary(holding.getInstrument().getId(), holding.getInstrument().getSymbol().getValue(), holding.getInstrument().getName(), holding.getQuantity(), holding.getAvgBuyPrice(), currentPrice != null ? currentPrice : Price.of(java.math.BigDecimal.ZERO), unrealized, holding.getRealizedPnl()); }

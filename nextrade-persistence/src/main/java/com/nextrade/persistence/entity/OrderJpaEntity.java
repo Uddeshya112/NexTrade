@@ -72,8 +72,6 @@ public class OrderJpaEntity {
     @Column(name = "original_order_id")
     private UUID originalOrderId;
 
-    @Column(name = "client_order_id", length = 100)
-    private String clientOrderId;
 
     @Column(name = "revision", nullable = false)
     private Long revision = 0L;

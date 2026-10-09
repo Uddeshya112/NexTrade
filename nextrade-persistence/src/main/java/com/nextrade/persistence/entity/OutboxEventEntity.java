@@ -9,7 +9,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "outbox_event",
     indexes = {
-        @Index(name = "idx_outbox_unpublished", columnList = "published, created_at", filter = "published = false"),
+        @Index(name = "idx_outbox_unpublished", columnList = "published, created_at"),
         @Index(name = "idx_outbox_aggregate", columnList = "aggregate_type, aggregate_id")
     })
 @Data
@@ -67,8 +67,6 @@ public class OutboxEventEntity {
     @Column(name = "partition_key", length = 100)
     private String partitionKey;
 
-    @Column(name = "published_at")
-    private Instant publishedAt;
 
     @PrePersist void onCreate() { 
         if (id == null) id = UUID.randomUUID();

@@ -21,7 +21,7 @@ public class LedgerService {
     private final LedgerEntryRepository ledgerRepository;
     private final LedgerJournalRepository journalRepository;
 
-    public void recordTradeSettlement(com.nextrade.domain.order.Trade trade, Identifier.UserId buyerId, Identifier.UserId sellerId, Money tradeValue) {
+    public void recordTradeSettlement(com.nextrade.domain.order.Trade trade, com.nextrade.common.identifier.UserId buyerId, com.nextrade.common.identifier.UserId sellerId, Money tradeValue) {
         UUID journalId = UUID.randomUUID();
         Instant now = Instant.now();
         String currency = tradeValue.getCurrencyCode();

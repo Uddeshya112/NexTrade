@@ -10,7 +10,7 @@ import com.nextrade.domain.repository.UserRepository;
 import com.nextrade.domain.user.User;
 import com.nextrade.service.ports.AccessTokenIssuer;
 import com.nextrade.service.ports.AuthChallengeRepository;
-import com.nextrade.service.ports.EventOutbox;
+import com.nextrade.domain.repository.EventOutbox;
 import com.nextrade.service.ports.PasswordHasher;
 import com.nextrade.service.ports.RefreshTokenFactory;
 import com.nextrade.service.ports.SessionRepository;
@@ -46,11 +46,12 @@ public final class AuthService {
         this.tokenPolicy = tokenPolicy;
     }
 
-    public AuthResult register(String username, String email, String rawPassword, String role) {
+    public AuthResult register(String username, String email, String rawPassword) {
         if (users.existsByUsername(username) || users.existsByEmail(email)) {
             return new AuthResult.Failure("ACCOUNT_EXISTS", "Username or email already exists");
         }
-        User user = User.register(username, email, passwords.hash(rawPassword), com.nextrade.common.enumtype.UserRole.valueOf(role));
+        // Public registration must never grant privileged roles from request data.
+        User user = User.register(username, email, passwords.hash(rawPassword), com.nextrade.common.enumtype.UserRole.TRADER);
         users.save(user);
         String selector = RandomIds.numericCode(8);
         String code = RandomIds.numericCode(6);

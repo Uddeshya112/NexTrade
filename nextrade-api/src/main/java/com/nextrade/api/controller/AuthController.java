@@ -37,8 +37,9 @@ public class AuthController {
     @PostMapping("/register")
     @Operation(summary = "Register new user")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody AuthResponse.RegisterRequest request) {
-        String role = request.role() == null || request.role().isBlank() ? "TRADER" : request.role();
-        return ResponseEntity.ok(map(authService.register(request.username(), request.email(), request.password(), role)));
+        // Ignore any role supplied by a public client; privileged roles are assigned only administratively.
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(map(authService.register(request.username(), request.email(), request.password())));
     }
 
     @PostMapping("/login")

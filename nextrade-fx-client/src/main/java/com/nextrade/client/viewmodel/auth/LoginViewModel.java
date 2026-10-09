@@ -5,7 +5,6 @@ import com.nextrade.client.security.AuthContext;
 import com.nextrade.client.security.RateLimiter;
 import com.nextrade.client.service.ApiClient;
 import com.nextrade.contracts.auth.AuthResponse;
-import com.nextrade.common.identifier.UserId;
 import javafx.application.Platform;
 import javafx.beans.property.*;
 import javafx.concurrent.Task;
@@ -63,7 +62,7 @@ public class LoginViewModel {
                 rateLimiter.reset("login:" + emailOrUsername.get().toLowerCase());
                 try {
                     authContext.setAuthenticated(success.accessToken(), success.refreshToken(),
-                            UserId.parse(success.userId()),
+                            com.nextrade.common.identifier.UserId.parse(success.userId()),
                             emailOrUsername.get(), com.nextrade.common.enumtype.UserRole.valueOf(success.role()),
                             "", "ACTIVE", rememberMe.get());
                     NavigationManager.getInstance().navigateTo("dashboard");

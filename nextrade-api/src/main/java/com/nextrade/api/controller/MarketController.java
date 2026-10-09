@@ -24,7 +24,7 @@ public class MarketController {
 
     @GetMapping("/prices")
     @Operation(summary = "Get current prices for instruments")
-    public ResponseEntity<Map<Identifier.InstrumentId, Price>> getPrices(@RequestParam List<Identifier.InstrumentId> instruments) {
+    public ResponseEntity<Map<com.nextrade.common.identifier.InstrumentId, Price>> getPrices(@RequestParam List<com.nextrade.common.identifier.InstrumentId> instruments) {
         return ResponseEntity.ok(marketDataService.getCurrentPrices(Set.copyOf(instruments)));
     }
 
@@ -35,5 +35,5 @@ public class MarketController {
         return ResponseEntity.ok(List.of());
     }
 
-    public record InstrumentSummary(Identifier.InstrumentId id, String symbol, String name, String exchange, String currency, boolean tradeable) {}
+    public record InstrumentSummary(com.nextrade.common.identifier.InstrumentId id, String symbol, String name, String exchange, String currency, boolean tradeable) {}
 }

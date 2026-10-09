@@ -1,26 +1,32 @@
-# Final verification report — updated repo snapshot
+# Final verification report — patched NexTrade snapshot
 
-## Scope
-This report covers static checks and core Java compilation after the 2026-10-09 update batch. It does not claim a complete multi-module Maven build.
+Date: 2026-10-09
 
-## Checks
-- Java version available: Java 21.
-- Core Java compilation (`nextrade-common`, `nextrade-contracts`, `nextrade-domain`, `nextrade-engine`): PASS.
-- Maven POM XML files: all parsed successfully.
-- Package declarations versus Java source paths: no mismatches detected.
-- ZIP archive validation: PASS.
+## Checks executed in this patch pass
 
-## Not verified / known remaining blockers
-- Maven was not available in the execution environment and Maven Central DNS resolution failed, so `mvn clean verify` was not executed.
-- The service/API order path still contains cross-module API drift: `TradingService` and `TradingController` refer to older `RiskEngine`, `MatchingEngine`, and `OrderRequest` shapes than the current engine/contracts modules. A full compile is therefore NOT claimed.
-- PostgreSQL/Redis/Kafka integration, Docker startup, Spring application startup, REST login flow, JavaFX client launch, and security scans remain unverified.
-- Email transport is not configured in the development application. Password-reset and verification messages are not delivered.
+- Java 21 direct compilation of all `nextrade-common` and `nextrade-domain` production sources: PASS.
+- Java 21 direct compilation of all `nextrade-engine` production sources plus `StrategySignal`: PASS.
+- Syntax compilation of the new domain/engine test sources against temporary JUnit API stubs: PASS (this checks Java syntax only; it is not a JUnit execution).
+- Standalone executable smoke assertions for negative wallet movements, FOK self-liquidity, sell-side self-trade removal, and zero-price order rejection: PASS.
+- Repository ZIP integrity: to be checked when packaging.
+- Maven: NOT EXECUTED — Maven is not installed in this environment.
 
-## Run next on a machine with Maven and network access
-From the directory containing the root `pom.xml`:
+## Not executed
 
-```bash
-mvn -U clean verify
-```
+- Full Maven reactor build and dependency resolution.
+- Real JUnit/property-based test runner execution.
+- API/service/client compilation with framework dependencies.
+- Spring Boot startup and REST/WebSocket integration tests.
+- Database migration execution and ORM/schema validation.
+- Docker build/deployment and health checks.
+- Dependency, secret, and container vulnerability scans.
 
-Resolve the remaining compile errors before attempting `docker compose up` or testing localhost endpoints.
+## Important remaining blockers
+
+- `TradingService` and adjacent service/persistence modules still contain cross-revision API mismatches called out in `ERROR-RESOLUTION-REPORT.md`; the full application build remains unverified.
+- The application still contains in-memory repository implementations and a no-op `EventOutbox` bean, so it is not durable/production-ready for financial trades.
+- Password-reset challenge delivery is not configured; the current service creates reset challenges but does not deliver the token.
+- Wallet/order persistence mappings and migrations require a canonical schema strategy and runtime validation.
+- JWT secret environment variables must be supplied before starting the API; this is intentional fail-closed behavior.
+
+**Status: targeted safety patch only. Not a complete repair, release certification, or production-readiness claim.**

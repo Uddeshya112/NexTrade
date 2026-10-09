@@ -10,6 +10,7 @@
     </parent>
     <artifactId>nextrade-service</artifactId>
     <dependencies>
+        <dependency><groupId>org.projectlombok</groupId><artifactId>lombok</artifactId><scope>provided</scope></dependency>
         <dependency><groupId>com.nextrade</groupId><artifactId>nextrade-contracts</artifactId></dependency>
         <dependency>
             <groupId>com.nextrade</groupId>

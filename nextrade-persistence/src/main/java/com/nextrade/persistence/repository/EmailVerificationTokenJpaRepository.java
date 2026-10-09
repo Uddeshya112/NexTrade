@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.time.Instant;
 
 public interface EmailVerificationTokenJpaRepository extends JpaRepository<EmailVerificationTokenJpaEntity, UUID> {
     Optional<EmailVerificationTokenJpaEntity> findBySelectorAndCodeHash(String selector, String codeHash);
@@ -22,5 +23,6 @@ public interface EmailVerificationTokenJpaRepository extends JpaRepository<Email
     @Query("UPDATE EmailVerificationTokenJpaEntity t SET t.used = true, t.usedAt = CURRENT_TIMESTAMP WHERE t.userId = :userId AND t.used = false")
     void invalidatePrevious(@Param("userId") UUID userId);
 
-    long countRecentResends(UUID userId, java.time.Duration window);
+    @Query("SELECT COUNT(t) FROM EmailVerificationTokenJpaEntity t WHERE t.userId = :userId AND t.createdAt >= :since")
+    long countRecentResends(@Param("userId") UUID userId, @Param("since") Instant since);
 }

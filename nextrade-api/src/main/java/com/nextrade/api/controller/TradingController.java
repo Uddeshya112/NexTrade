@@ -35,7 +35,7 @@ public class TradingController {
     public CompletableFuture<ResponseEntity<OrderResponse>> placeOrder(
             @Valid @RequestBody OrderRequest.Place request,
             @AuthenticationPrincipal Jwt jwt) {
-        Identifier.UserId userId = Identifier.UserId.of(UUID.fromString(jwt.getSubject()));
+        com.nextrade.common.identifier.UserId userId = com.nextrade.common.identifier.UserId.of(UUID.fromString(jwt.getSubject()));
         OrderRequest orderRequest = new OrderRequest(
             request.instrumentId(), request.side(), request.type(), request.quantity(),
             Optional.ofNullable(request.limitPrice()), Optional.ofNullable(request.stopPrice()),
@@ -47,8 +47,8 @@ public class TradingController {
     @Operation(summary = "Cancel order")
     public CompletableFuture<ResponseEntity<OrderResponse.CancelResult>> cancelOrder(
             @PathVariable UUID orderId, @AuthenticationPrincipal Jwt jwt) {
-        Identifier.UserId userId = Identifier.UserId.of(UUID.fromString(jwt.getSubject()));
-        return tradingService.cancelOrder(Identifier.OrderId.of(orderId), userId).thenApply(r -> ResponseEntity.ok(r));
+        com.nextrade.common.identifier.UserId userId = com.nextrade.common.identifier.UserId.of(UUID.fromString(jwt.getSubject()));
+        return tradingService.cancelOrder(com.nextrade.common.identifier.OrderId.of(orderId), userId).thenApply(r -> ResponseEntity.ok(r));
     }
 
     @PostMapping("/{orderId}/modify")
@@ -56,7 +56,7 @@ public class TradingController {
     public CompletableFuture<ResponseEntity<OrderResponse>> modifyOrder(
             @PathVariable UUID orderId, @Valid @RequestBody OrderRequest.Modify request,
             @AuthenticationPrincipal Jwt jwt) {
-        Identifier.UserId userId = Identifier.UserId.of(UUID.fromString(jwt.getSubject()));
+        com.nextrade.common.identifier.UserId userId = com.nextrade.common.identifier.UserId.of(UUID.fromString(jwt.getSubject()));
         // Implementation needed
         return CompletableFuture.completedFuture(ResponseEntity.ok(null));
     }
@@ -67,8 +67,8 @@ public class TradingController {
     getOrderHistory(@RequestParam(required = false) OrderStatus status,
                     @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "50") int size,
                     @AuthenticationPrincipal Jwt jwt) {
-        Identifier.UserId userId = Identifier.UserId.of(UUID.fromString(jwt.getSubject()));
-        return ResponseEntity.ok(tradingService.getOrderHistory(Identifier.UserId.of(java.util.UUID.fromString(jwt.getSubject())), status, page, size));
+        com.nextrade.common.identifier.UserId userId = com.nextrade.common.identifier.UserId.of(UUID.fromString(jwt.getSubject()));
+        return ResponseEntity.ok(tradingService.getOrderHistory(com.nextrade.common.identifier.UserId.of(java.util.UUID.fromString(jwt.getSubject())), status, page, size));
     }
 
     public record PlaceOrderRequest(UUID instrumentId, OrderSide side, OrderType type, Quantity quantity, Price limitPrice, Price stopPrice, TimeInForce timeInForce) {}
