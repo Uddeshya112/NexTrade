@@ -1,4 +1,4 @@
-FROM eclipse-temurin:25-jre
+FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY target/nextrade-api-1.0.0-SNAPSHOT.jar app.jar
 USER 10001

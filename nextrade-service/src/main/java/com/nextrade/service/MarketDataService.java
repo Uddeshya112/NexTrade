@@ -17,13 +17,13 @@ public class MarketDataService {
     private final MarketSimulationEngine marketSimulationEngine;
 
     @Cacheable(value = "marketData", key = "#instrumentId.value.toString()")
-    public Price getCurrentPrice(Identifier.InstrumentId instrumentId) {
+    public Price getCurrentPrice(com.nextrade.common.identifier.InstrumentId instrumentId) {
         return marketSimulationEngine.getCurrentPrice(instrumentId);
     }
 
-    public Map<Identifier.InstrumentId, Price> getCurrentPrices(Set<Identifier.InstrumentId> instrumentIds) {
-        Map<Identifier.InstrumentId, Price> result = new HashMap<>();
-        for (Identifier.InstrumentId id : instrumentIds) {
+    public Map<com.nextrade.common.identifier.InstrumentId, Price> getCurrentPrices(Set<com.nextrade.common.identifier.InstrumentId> instrumentIds) {
+        Map<com.nextrade.common.identifier.InstrumentId, Price> result = new HashMap<>();
+        for (com.nextrade.common.identifier.InstrumentId id : instrumentIds) {
             Price price = getCurrentPrice(id);
             if (price != null) result.put(id, price);
         }

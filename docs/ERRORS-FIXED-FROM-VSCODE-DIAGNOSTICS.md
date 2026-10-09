@@ -34,6 +34,6 @@ Maven is not installed in this repair environment, so a complete dependency-reso
 ## Next step in VS Code
 
 1. Extract this ZIP and open the `NexTrade-STRUCTURED` folder containing the root `pom.xml`.
-2. Ensure JDK 25 and Maven are installed.
+2. Ensure JDK 21 and Maven are installed.
 3. In Command Palette, run **Java: Clean Java Language Server Workspace** and then **Maven: Update Project**.
 4. In the root terminal, run `mvn -U clean verify` and fix any new compile/test failures shown by that actual build.

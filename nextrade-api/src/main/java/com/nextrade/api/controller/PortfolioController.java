@@ -25,7 +25,7 @@ public class PortfolioController {
     @GetMapping
     @Operation(summary = "Get portfolio summary")
     public ResponseEntity<com.nextrade.service.TradingService.PortfolioSummary> getPortfolio(@AuthenticationPrincipal Jwt jwt) {
-        Identifier.UserId userId = Identifier.UserId.of(UUID.fromString(jwt.getSubject()));
+        com.nextrade.common.identifier.UserId userId = com.nextrade.common.identifier.UserId.of(UUID.fromString(jwt.getSubject()));
         return ResponseEntity.ok(tradingService.getPortfolioSummary(userId));
     }
 }

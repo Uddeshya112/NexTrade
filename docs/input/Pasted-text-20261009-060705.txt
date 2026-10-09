@@ -1,0 +1,1100 @@
+I understand you want me to fix the actual repository, but I need to clarify a critical limitation: **I am an AI language model without access to a real filesystem, shell, or repository.** I cannot execute `mvn`, `git`, `docker`, `grep`, or modify files in your actual repository.
+
+**What I CAN do:** Provide the **complete, corrected source code for every file** that needs to be fixed based on the error diagnostics you shared.
+
+**What YOU need to do:**
+1. Create the repository structure locally (or use your existing one)
+2. Replace the actual files with the corrected versions below
+3. Run the verification commands yourself
+4. Create the ZIP file yourself
+
+---
+
+## 📁 COMPLETE CORRECTED FILES FOR ALL CRITICAL ISSUES
+
+### 1. FIX: `nextrade-api/src/main/java/com/nextrade/api/websocket/interceptor/JwtChannelInterceptor.java`
+
+```java
+package com.nextrade.api.websocket.interceptor;
+
+import com.nextrade.service.AuthService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.simp.stomp.StompCommand;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
+import org.springframework.messaging.support.ChannelInterceptor;
+import org.springframework.messaging.support.MessageHeaderAccessor;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.UUID;
+
+@Component
+@RequiredArgsConstructor
+public class JwtChannelInterceptor implements ChannelInterceptor {
+
+    private final AuthService authService;
+
+    @Override
+    public Message<?> preSend(@NonNull Message<?> message, @NonNull MessageChannel channel) {
+        StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
+        
+        if (StompCommand.CONNECT.equals(accessor.getCommand())) {
+            String token = getToken(accessor);
+            if (token == null) {
+                throw new IllegalStateException("Authentication required: missing token");
+            }
+            
+            Optional<AuthService.TokenClaims> claimsOpt = authService.validateTokenFull(token, "access");
+            if (claimsOpt.isEmpty()) {
+                throw new IllegalStateException("Authentication required: invalid or expired token");
+            }
+            
+            AuthService.TokenClaims claims = claimsOpt.get();
+            if (!authService.isSessionActive(UUID.fromString(claims.sessionId()))) {
+                throw new IllegalStateException("Session revoked");
+            }
+            
+            var auth = new UsernamePasswordAuthenticationToken(
+                claims.userId(), null, List.of(new SimpleGrantedAuthority("ROLE_" + claims.role()))
+            );
+            accessor.setUser(auth);
+        }
+        
+        // Subscription authorization
+        if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+            if (accessor.getUser() == null) {
+                throw new IllegalStateException("Unauthorized: no authentication");
+            }
+            
+            String dest = accessor.getDestination();
+            if (dest != null) {
+                if (dest.startsWith("/user/")) {
+                    try {
+                        UUID subUserId = UUID.fromString(dest.substring("/user/".length()).split("/")[0]);
+                        UUID authUserId = ((com.nextrade.common.identifier.Identifier.UserId) accessor.getUser().getPrincipal()).getValue();
+                        if (!subUserId.equals(authUserId)) {
+                            throw new IllegalStateException("Unauthorized subscription to another user's destination");
+                        }
+                    } catch (Exception e) {
+                        throw new IllegalStateException("Invalid subscription destination format");
+                    }
+                } else if (dest.startsWith("/topic/admin")) {
+                    var auth = accessor.getUser();
+                    if (auth == null || auth.getAuthorities().stream().noneMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
+                        throw new IllegalStateException("Admin access required");
+                    }
+                }
+            }
+            
+            // Message size limit
+            if (StompCommand.SEND.equals(accessor.getCommand())) {
+                String payload = accessor.getNativeHeader("content-length") != null 
+                    ? accessor.getNativeHeader("content-length").get(0) : "0";
+                if (Long.parseLong(payload) > 1024 * 1024) { // 1MB limit
+                    throw new IllegalStateException("Message too large");
+                }
+            }
+            
+            return message;
+        }
+        
+        private String getToken(StompHeaderAccessor accessor) {
+            List<String> auth = accessor.getNativeHeader("Authorization");
+            if (auth != null && !auth.isEmpty() && auth.get(0).startsWith("Bearer ")) {
+                return auth.get(0).substring(7);
+            }
+            List<String> tok = accessor.getNativeHeader("access_token");
+            return (tok != null && !tok.isEmpty()) ? tok.get(0) : null;
+        }
+    }
+}
+```
+
+### 2. `nextrade-api/src/main/java/com/nextrade/api/websocket/WebSocketConfig.java`
+
+```java
+package com.nextrade.api.websocket;
+
+import com.nextrade.api.websocket.interceptor.JwtChannelInterceptor;
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.messaging.simp.config.ChannelRegistration;
+import org.springframework.messaging.simp.config.MessageBrokerRegistry;
+import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
+import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
+import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+
+@Configuration
+@EnableWebSocketMessageBroker
+@RequiredArgsConstructor
+public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+
+    private final JwtChannelInterceptor jwtChannelInterceptor;
+
+    @Override
+    public void configureMessageBroker(@NonNull MessageBrokerRegistry registry) {
+        registry.enableSimpleBroker("/topic", "/queue", "/user");
+        registry.setApplicationDestinationPrefixes("/app");
+        registry.setUserDestinationPrefix("/user");
+    }
+
+    @Override
+    public void registerStompEndpoints(@NonNull StompEndpointRegistry registry) {
+        registry.addEndpoint("/ws/market")
+                .setAllowedOrigins("http://localhost:3000", "https://nextrade.example.com")
+                .addInterceptors(jwtChannelInterceptor)
+                .withSockJS();
+    }
+
+    @Override
+    public void configureClientInboundChannel(@NonNull ChannelRegistration registration) {
+        registration.interceptors(jwtChannelInterceptor);
+    }
+}
+```
+
+### 3. `nextrade-fx-client/src/main/java/com/nextrade/client/service/StompWebSocketClient.java`
+
+```java
+package com.nextrade.client.service;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.java_websocket.client.WebSocketClient;
+import org.java_websocket.handshake.ServerHandshake;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.net.URI;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
+
+public class StompWebSocketClient extends WebSocketClient implements AutoCloseable {
+    private static final Logger log = LoggerFactory.getLogger(StompWebSocketClient.class);
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final Map<String, Consumer<String>> subscriptions = new ConcurrentHashMap<>();
+    private final String accessToken;
+    private boolean connected = false;
+
+    public StompWebSocketClient(String serverUrl, String accessToken) {
+        super(URI.create(serverUrl + "/ws/market/websocket"));
+        this.accessToken = accessToken;
+    }
+
+    @Override public void onOpen(ServerHandshake handshakedata) {
+        sendStompConnect();
+    }
+
+    @Override public void onMessage(String message) {
+        handleStompFrame(message);
+    }
+
+    @Override public void onClose(int code, String reason, boolean remote) {
+        connected = false;
+    }
+
+    @Override public void onError(Exception ex) {
+        log.error("WebSocket error", ex);
+    }
+
+    private void sendStompConnect() {
+        String connectFrame = "CONNECT\n" +
+            "accept-version:1.1,1.0\n" +
+            "heart-beat:10000,10000\n" +
+            "Authorization:Bearer " + accessToken + "\n" +
+            "\n\u0000";
+        send(connectFrame);
+    }
+
+    public void subscribe(String destination, Consumer<String> handler) {
+        String subId = "sub-" + System.currentTimeMillis();
+        subscriptions.put(subId, handler);
+        String subscribeFrame = "SUBSCRIBE\n" +
+            "id:" + subId + "\n" +
+            "destination:" + destination + "\n" +
+            "\n\u0000";
+        send(subscribeFrame);
+    }
+
+    public void send(String destination, Object payload) {
+        try {
+            String body = objectMapper.writeValueAsString(payload);
+            String sendFrame = "SEND\n" +
+                "destination:" + destination + "\n" +
+                "content-type:application/json\n" +
+                "content-length:" + body.length() + "\n" +
+                "\n" + body + "\u0000";
+            send(sendFrame);
+        } catch (Exception e) {
+            log.error("Failed to send STOMP message", e);
+        }
+    }
+
+    private void handleStompFrame(String frame) {
+        String[] lines = frame.split("\n");
+        if (lines.length == 0) return;
+        
+        String command = lines[0];
+        Map<String, String> headers = new ConcurrentHashMap<>();
+        StringBuilder body = new StringBuilder();
+        boolean inBody = false;
+        
+        for (int i = 1; i < lines.length; i++) {
+            String line = lines[i];
+            if (line.isEmpty() || line.equals("\u0000")) {
+                inBody = true;
+                continue;
+            }
+            if (inBody) {
+                body.append(line);
+            } else {
+                int colon = line.indexOf(':');
+                if (colon > 0) {
+                    headers.put(line.substring(0, colon), line.substring(colon + 1));
+                }
+            }
+        }
+        
+        switch (command) {
+            case "CONNECTED" -> {
+                connected = true;
+                log.debug("STOMP connected");
+            }
+            case "MESSAGE" -> {
+                String subId = headers.get("subscription");
+                Consumer<String> handler = subscriptions.get(subId);
+                if (handler != null) handler.accept(body.toString());
+            }
+            case "ERROR" -> log.error("STOMP error: {}", body.toString());
+        }
+    }
+
+    public boolean isConnected() { return connected; }
+    
+    @Override
+    public void close() {
+        super.close();
+        subscriptions.clear();
+    }
+}
+```
+
+### 4. `nextrade-fx-client/src/main/java/com/nextrade/client/view/LoginView.java`
+
+```java
+package com.nextrade.client.view;
+
+import com.nextrade.client.core.ComponentFactory;
+import com.nextrade.client.viewmodel.auth.LoginViewModel;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
+import javafx.scene.text.Text;
+
+public class LoginView extends VBox {
+    private final LoginViewModel viewModel;
+
+    public LoginView(LoginViewModel viewModel) {
+        this.viewModel = viewModel;
+        initializeUI();
+        bindViewModel();
+    }
+
+    private void initializeUI() {
+        getStyleClass().add("nx-auth-view");
+        setAlignment(Pos.CENTER);
+        setPadding(new Insets(40));
+        setSpacing(24);
+        setMaxWidth(440);
+        setFillWidth(false);
+
+        // Brand section
+        VBox brand = createBrandSection();
+
+        // Welcome text
+        VBox welcome = createWelcomeSection();
+
+        // Form
+        VBox form = createFormSection();
+
+        // Options
+        HBox options = createOptionsSection();
+
+        // Login button
+        Button loginBtn = ComponentFactory.primaryButton("Sign In");
+        loginBtn.getStyleClass().add("nx-button-full");
+        loginBtn.setPrefHeight(48);
+        loginBtn.disableProperty().bind(viewModel.loggingInProperty());
+
+        // Divider
+        HBox divider = createDividerSection();
+
+        // Register link
+        HBox register = createRegisterSection();
+
+        VBox cardContent = new VBox(24, brand, welcome, ComponentFactory.divider(), form, options, loginBtn, divider, register);
+        cardContent.setAlignment(Pos.CENTER);
+        cardContent.setFillWidth(true);
+
+        VBox card = ComponentFactory.card();
+        card.getStyleClass().add("nx-auth-card");
+        card.setPadding(new Insets(32));
+        card.setMaxWidth(440);
+        card.setContent(cardContent);
+
+        getChildren().add(card);
+    }
+
+    private VBox createBrandSection() {
+        VBox brand = new VBox(8);
+        brand.setAlignment(Pos.CENTER);
+        Label logo = new Label("NEXTRADE");
+        logo.getStyleClass().add("nx-logo-text");
+        Label tagline = new Label("Algorithmic Trading Platform");
+        tagline.getStyleClass().add("nx-tagline");
+        brand.getChildren().addAll(logo, tagline);
+        return brand;
+    }
+
+    private VBox createWelcomeSection() {
+        VBox welcome = new VBox(4);
+        welcome.setAlignment(Pos.CENTER);
+        Label title = new Label("Welcome back");
+        title.getStyleClass().add("nx-heading-2");
+        Label subtitle = new Label("Sign in to access your trading dashboard");
+        subtitle.getStyleClass().add("nx-body-secondary");
+        welcome.getChildren().addAll(title, subtitle);
+        return welcome;
+    }
+
+    private VBox createFormSection() {
+        VBox form = new VBox(16);
+        form.setFillWidth(true);
+
+        TextField emailField = new TextField();
+        emailField.textProperty().bindBidirectional(viewModel.emailOrUsernameProperty());
+        emailField.getStyleClass().addAll("nx-input", "nx-input-lg");
+        emailField.setPromptText("Email or Username");
+        emailField.setPrefHeight(48);
+
+        PasswordField passwordField = new PasswordField();
+        passwordField.textProperty().bindBidirectional(viewModel.passwordProperty());
+        passwordField.getStyleClass().addAll("nx-input", "nx-input-lg", "nx-password-field");
+        passwordField.setPromptText("Password");
+        passwordField.setPrefHeight(48);
+
+        CheckBox showPassword = new CheckBox();
+        showPassword.selectedProperty().bindBidirectional(viewModel.showPasswordProperty());
+        showPassword.getStyleClass().add("nx-show-password-toggle");
+        passwordField.setShowPasswordToggle(showPassword);
+
+        VBox emailWrapper = ComponentFactory.formFieldWithValidation("Email / Username", emailField, viewModel.emailErrorProperty());
+        VBox passwordWrapper = ComponentFactory.formFieldWithValidation("Password", passwordField, viewModel.passwordErrorProperty());
+
+        Label rateLimitLabel = new Label();
+        rateLimitLabel.textProperty().bind(viewModel.rateLimitErrorProperty());
+        rateLimitLabel.getStyleClass().add("nx-rate-limit-error");
+        rateLimitLabel.visibleProperty().bind(viewModel.rateLimitErrorProperty().isNotEmpty());
+        rateLimitLabel.managedProperty().bind(viewModel.rateLimitErrorProperty().isNotEmpty());
+
+        form.getChildren().addAll(emailWrapper, passwordWrapper, rateLimitLabel);
+        return form;
+    }
+
+    private HBox createOptionsSection() {
+        HBox options = new HBox();
+        options.setAlignment(Pos.CENTER_LEFT);
+        options.setSpacing(16);
+
+        CheckBox rememberMe = new CheckBox("Remember me");
+        rememberMe.getStyleClass().add("nx-checkbox");
+        rememberMe.selectedProperty().bindBidirectional(viewModel.rememberMeProperty());
+
+        Hyperlink forgotPassword = new Hyperlink("Forgot password?");
+        forgotPassword.getStyleClass().add("nx-link");
+        forgotPassword.setOnAction(e -> viewModel.forgotPassword());
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        options.getChildren().addAll(rememberMe, spacer, forgotPassword);
+        return options;
+    }
+
+    private HBox createDividerSection() {
+        HBox divider = new HBox(12);
+        divider.setAlignment(Pos.CENTER);
+        Separator left = new Separator();
+        left.getStyleClass().add("nx-divider");
+        HBox.setHgrow(left, Priority.ALWAYS);
+        
+        Label text = new Label("or");
+        text.getStyleClass().add("nx-divider-text");
+        
+        Separator right = new Separator();
+        right.getStyleClass().add("nx-divider");
+        HBox.setHgrow(right, Priority.ALWAYS);
+        
+        divider.getChildren().addAll(left, text, right);
+        return divider;
+    }
+
+    private HBox createRegisterSection() {
+        HBox register = new HBox(4);
+        register.setAlignment(Pos.CENTER);
+        
+        Label text = new Label("Don't have an account?");
+        text.getStyleClass().add("nx-body-secondary");
+        
+        Hyperlink link = new Hyperlink("Create account");
+        link.getStyleClass().add("nx-link-primary");
+        link.setOnAction(e -> viewModel.navigateToRegister());
+        
+        register.getChildren().addAll(text, link);
+        return register;
+    }
+
+    private void bindViewModel() {
+        viewModel.loggingInProperty().addListener((obs, old, val) -> {
+            // Update button text/spinner when logging in
+        });
+    }
+}
+```
+
+### 4. `nextrade-fx-client/src/main/java/com/nextrade/client/viewmodel/auth/ForgotPasswordViewModel.java`
+
+```java
+package com.nextrade.client.viewmodel.auth;
+
+import com.nextrade.client.service.ApiClient;
+import com.nextrade.client.security.RateLimiter;
+import com.nextrade.contracts.auth.AuthResponse;
+import javafx.application.Platform;
+import javafx.beans.property.*;
+import javafx.concurrent.Task;
+
+import java.util.concurrent.TimeUnit;
+
+public class ForgotPasswordViewModel extends ValidatableViewModel {
+    private final ApiClient apiClient;
+    private final RateLimiter rateLimiter = RateLimiter.getInstance();
+
+    private final StringProperty email = new SimpleStringProperty("");
+    private final StringProperty emailError = new SimpleStringProperty("");
+    private final BooleanProperty sending = new SimpleBooleanProperty(false);
+    private final StringProperty statusMessage = new SimpleStringProperty("");
+    private final ObjectProperty<Step> currentStep = new SimpleObjectProperty<>(Step.ENTER_EMAIL);
+    private String resetToken = null;
+
+    public enum Step { ENTER_EMAIL, CODE_SENT, VERIFY_CODE, RESET_PASSWORD }
+
+    public ForgotPasswordViewModel() {
+        this.apiClient = new ApiClient("http://localhost:8080");
+        setupValidation();
+    }
+
+    private void setupValidation() {
+        email.addListener((obs, old, val) -> {
+            if (val == null || val.trim().isEmpty()) emailError.set("Email is required");
+            else if (!val.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) emailError.set("Please enter a valid email address");
+            else emailError.set("");
+        });
+    }
+
+    public void sendResetCode() {
+        if (!validateEmail()) return;
+
+        String rateKey = "forgot:" + email.get().toLowerCase();
+        if (!RateLimiter.getInstance().tryAcquire(rateKey, 3, 60)) {
+            long remaining = RateLimiter.getInstance().getRemainingTime(rateKey, 60);
+            emailError.set(String.format("Too many requests. Try again in %d minutes", 
+                TimeUnit.SECONDS.toMinutes(remaining) + 1));
+            return;
+        }
+
+        sending.set(true);
+        statusMessage.set("Sending reset token...");
+
+        Task<Void> task = new Task<>() {
+            @Override protected Void call() {
+                apiClient.forgotPassword(email.get()).get();
+                return null;
+            }
+        };
+
+        task.setOnSucceeded(e -> {
+            sending.set(false);
+            currentStep.set(Step.VERIFY_CODE);
+            statusMessage.set("Reset token sent to " + maskEmail(email.get()) + ". Enter the token below.");
+        });
+
+        task.setOnFailed(e -> {
+            sending.set(false);
+            statusMessage.set("Failed to send token. Please try again.");
+            emailError.set("Email not found or error occurred");
+        });
+
+        new Thread(task).start();
+    }
+
+    public void verifyToken(String token) {
+        if (token == null || token.length() < 32) {
+            emailError.set("Please enter the full reset token from email");
+            return;
+        }
+
+        sending.set(true);
+        statusMessage.set("Verifying token...");
+
+        Task<com.nextrade.contracts.auth.AuthResponse.TokenVerificationResponse> task = new Task<>() {
+            @Override protected com.nextrade.contracts.auth.AuthResponse.TokenVerificationResponse call() {
+                return apiClient.verifyResetToken(token).get();
+            }
+        };
+
+        task.setOnSucceeded(e -> {
+            sending.set(false);
+            com.nextrade.contracts.auth.AuthResponse.TokenVerificationResponse result = task.getValue();
+            if (result instanceof com.nextrade.contracts.auth.AuthResponse.TokenVerificationResponse.Valid valid) {
+                this.resetToken = token;
+                currentStep.set(Step.RESET_PASSWORD);
+                statusMessage.set("Token verified. Set your new password.");
+            } else {
+                emailError.set("Invalid or expired token");
+            }
+        });
+
+        task.setOnFailed(e -> {
+            sending.set(false);
+            emailError.set("Verification failed: " + e.getException().getMessage());
+        });
+
+        new Thread(task).start();
+    }
+
+    public void resetPassword(String newPassword, String confirmPassword) {
+        if (!newPassword.equals(confirmPassword)) {
+            emailError.set("Passwords do not match");
+            return;
+        }
+        if (newPassword.length() < 12) {
+            emailError.set("Password must be at least 12 characters");
+            return;
+        }
+        if (resetToken == null) {
+            emailError.set("Verification required first");
+            return;
+        }
+
+        sending.set(true);
+        statusMessage.set("Resetting password...");
+
+        Task<Void> task = new Task<>() {
+            @Override protected Void call() {
+                apiClient.resetPassword(resetToken, newPassword).get();
+                return null;
+            }
+        };
+
+        task.setOnSucceeded(e -> {
+            sending.set(false);
+            statusMessage.set("Password reset successful. Redirecting to login...");
+            resetToken = null;
+            Platform.runLater(() -> NavigationManager.getInstance().navigateTo("login"));
+        });
+
+        task.setOnFailed(e -> {
+            sending.set(false);
+            emailError.set("Reset failed: " + e.getException().getMessage());
+        });
+
+        new Thread(task).start();
+    }
+
+    private boolean validateEmail() {
+        if (email.get().trim().isEmpty()) { emailError.set("Email is required"); return false; }
+        if (!email.get().matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) { emailError.set("Please enter a valid email address"); return false; }
+        return true;
+    }
+
+    private String maskEmail(String email) {
+        String[] parts = email.split("@");
+        if (parts.length != 2) return email;
+        String name = parts[0];
+        return name.substring(0, Math.min(2, name.length())) + "***" + (name.length() > 1 ? name.substring(name.length() - 1) : "") + "@" + parts[1];
+    }
+
+    public StringProperty emailProperty() { return email; }
+    public StringProperty emailErrorProperty() { return emailError; }
+    public BooleanProperty sendingProperty() { return sending; }
+    public StringProperty statusMessageProperty() { return statusMessage; }
+    public ObjectProperty<Step> currentStepProperty() { return currentStep; }
+}
+```
+
+### 5. `nextrade-fx-client/src/main/java/com/nextrade/client/viewmodel/auth/LoginViewModel.java`
+
+```java
+package com.nextrade.client.viewmodel.auth;
+
+import com.nextrade.client.core.ComponentFactory;
+import com.nextrade.client.security.AuthContext;
+import com.nextrade.client.security.RateLimiter;
+import com.nextrade.client.service.ApiClient;
+import com.nextrade.contracts.auth.AuthResponse;
+import javafx.application.Platform;
+import javafx.beans.property.*;
+import javafx.concurrent.Task;
+
+import java.util.concurrent.TimeUnit;
+
+public class LoginViewModel extends ValidatableViewModel {
+    private final ApiClient apiClient;
+    private final AuthContext authContext = AuthContext.getInstance();
+    private final RateLimiter rateLimiter = RateLimiter.getInstance();
+
+    private final StringProperty emailOrUsername = new SimpleStringProperty("");
+    private final StringProperty password = new SimpleStringProperty("");
+    private final BooleanProperty rememberMe = new SimpleBooleanProperty(false);
+    private final BooleanProperty showPassword = new SimpleBooleanProperty(false);
+    private final StringProperty emailError = new SimpleStringProperty("");
+    private final StringProperty passwordError = new SimpleStringProperty("");
+    private final BooleanProperty loggingIn = new SimpleBooleanProperty(false);
+    private final StringProperty rateLimitError = new SimpleStringProperty("");
+
+    public LoginViewModel() {
+        this.apiClient = new ApiClient("http://localhost:8080");
+        setupValidation();
+    }
+
+    private void setupValidation() {
+        emailOrUsername.addListener((obs, old, val) -> {
+            if (val == null || val.trim().isEmpty()) emailError.set("Email or username is required");
+            else if (val.length() < 3) emailError.set("Must be at least 3 characters");
+            else emailError.set("");
+        });
+
+        password.addListener((obs, old, val) -> {
+            if (val == null || val.isEmpty()) passwordError.set("Password is required");
+            else if (val.length() < 12) passwordError.set("Password must be at least 12 characters");
+            else passwordError.set("");
+        });
+    }
+
+    public void login() {
+        clearError();
+        if (!validateForm()) return;
+
+        String rateKey = "login:" + emailOrUsername.get().toLowerCase();
+        if (!RateLimiter.getInstance().tryAcquire(rateKey, 5, 15)) {
+            long remaining = RateLimiter.getInstance().getRemainingTime(rateKey, 15);
+            rateLimitError.set(String.format("Too many attempts. Try again in %d minutes", 
+                TimeUnit.SECONDS.toMinutes(remaining) + 1));
+            return;
+        }
+
+        loggingIn.set(true);
+
+        Task<AuthResponse> task = new Task<>() {
+            @Override
+            protected AuthResponse call() throws Exception {
+                return apiClient.login(emailOrUsername.get(), password.get(), rememberMe.get()).get();
+            }
+        };
+
+        task.setOnSucceeded(e -> {
+            loggingIn.set(false);
+            
+            AuthResponse result = task.getValue();
+            if (result instanceof AuthResponse.Success success) {
+                rateLimiter.reset("login:" + emailOrUsername.get().toLowerCase());
+                NavigationManager.getInstance().navigateTo("dashboard");
+            } else if (result instanceof AuthResponse.Failure failure) {
+                handleLoginFailure(failure.code(), failure.message());
+            } else if (result instanceof AuthResponse.PendingVerification pending) {
+                handlePendingVerification(pending);
+            }
+        });
+
+        task.setOnFailed(e -> {
+            loggingIn.set(false);
+            handleLoginFailure(e.getException().getMessage());
+        });
+
+        new Thread(task).start();
+    }
+
+    private boolean validateForm() {
+        boolean valid = true;
+        if (emailOrUsername.get().trim().isEmpty()) { emailError.set("Email or username is required"); valid = false; }
+        if (password.get().isEmpty()) { passwordError.set("Password is required"); valid = false; }
+        else if (password.get().length() < 12) { passwordError.set("Password must be at least 12 characters"); valid = false; }
+        return valid;
+    }
+
+    private void handleLoginFailure(String code, String message) {
+        switch (code) {
+            case "INVALID_CREDENTIALS" -> rateLimitError.set("Invalid credentials. Please try again.");
+            case "ACCOUNT_LOCKED" -> rateLimitError.set("Account locked. " + message);
+            case "EMAIL_NOT_VERIFIED" -> rateLimitError.set("Please verify your email first.");
+            case "ACCOUNT_SUSPENDED" -> rateLimitError.set("Account suspended. Contact support.");
+            case "NETWORK_ERROR" -> rateLimitError.set("Network error. Please check your connection.");
+            default -> rateLimitError.set("Login failed: " + message);
+        }
+    }
+
+    private void handlePendingVerification(AuthResponse.PendingVerification pending) {
+        rateLimitError.set(pending.message());
+        NavigationManager.getInstance().navigateTo("email-verification");
+    }
+
+    private void clearError() {
+        emailError.set("");
+        passwordError.set("");
+        rateLimitError.set("");
+    }
+
+    public void forgotPassword() { NavigationManager.getInstance().navigateTo("forgot-password"); }
+    public void navigateToRegister() { NavigationManager.getInstance().navigateTo("register"); }
+
+    public StringProperty emailOrUsernameProperty() { return emailOrUsername; }
+    public StringProperty passwordProperty() { return password; }
+    public BooleanProperty rememberMeProperty() { return rememberMe; }
+    public BooleanProperty showPasswordProperty() { return showPassword; }
+    public StringProperty emailErrorProperty() { return emailError; }
+    public StringProperty passwordErrorProperty() { return passwordError; }
+    public BooleanProperty loggingInProperty() { return loggingIn; }
+    public StringProperty rateLimitErrorProperty() { return rateLimitError; }
+}
+```
+
+### 6. `nextrade-integration-tests/pom.xml` - Add ArchUnit dependency
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.nextrade</groupId>
+        <artifactId>nextrade-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+    <artifactId>nextrade-integration-tests</artifactId>
+    <dependencies>
+        <dependency>
+            <groupId>com.nextrade</groupId>
+            <artifactId>nextrade-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <version>1.2.1</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.quicktheories</groupId>
+            <artifactId>quicktheories-core</artifactId>
+            <version>0.36</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
+```
+
+### 10. `nextrade-integration-tests/src/test/java/com/nextrade/integration/ArchitectureRulesTest.java`
+
+```java
+package com.nextrade.integration;
+
+import com.tngtech.archunit.core.domain.JavaClasses;
+import com.tngtech.archunit.core.importer.ClassFileImporter;
+import com.tngtech.archunit.lang.ArchRule;
+import org.junit.jupiter.api.Test;
+
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.*;
+
+class ArchitectureRulesTest {
+    private final JavaClasses classes = new ClassFileImporter().importPackages("com.nextrade");
+
+    @Test void domainShouldNotDependOnSpring() {
+        noClasses().that().resideInAPackage("..domain..").should().dependOnClassesThat().resideInAPackage("org.springframework..").check(classes);
+    }
+
+    @Test void engineShouldNotDependOnSpringOrPersistence() {
+        noClasses().that().resideInAPackage("..engine..").should().dependOnClassesThat().resideInAnyPackage("org.springframework..", "..persistence..", "..api..", "..service..").check(classes);
+    }
+
+    @Test void persistenceShouldNotDependOnServiceOrApi() {
+        noClasses().that().resideInAPackage("..persistence..").should().dependOnClassesThat().resideInAnyPackage("..service..", "..api..").check(classes);
+    }
+
+    @Test void apiShouldNotDependOnEngineDirectly() {
+        noClasses().that().resideInAPackage("..api..").should().dependOnClassesThat().resideInAPackage("..engine..").check(classes);
+    }
+
+    @Test void noFieldInjection() {
+        noFields().should().beAnnotatedWith("org.springframework.beans.factory.annotation.Autowired").check(classes);
+    }
+}
+```
+
+### 10. `nextrade-integration-tests/src/test/java/com/nextrade/integration/MatchingEngineConcurrencyTest.java`
+
+```java
+package com.nextrade.integration;
+
+import com.nextrade.common.identifier.*;
+import com.nextrade.common.valueobject.*;
+import com.nextrade.common.enumtype.*;
+import com.nextrade.domain.order.Order;
+import com.nextrade.domain.instrument.Instrument;
+import com.nextrade.domain.user.User;
+import com.nextrade.common.enumtype.UserRole;
+import com.nextrade.engine.matching.MatchingEngine;
+import com.nextrade.engine.matching.OrderBook;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+
+import java.util.concurrent.*;
+
+@Execution(ExecutionMode.CONCURRENT)
+class MatchingEngineConcurrencyTest {
+
+    @Test
+    void concurrentOrderPlacement() throws InterruptedException {
+        MatchingEngine engine = new MatchingEngine(4, 8192, e -> {});
+        OrderBook book = engine.getOrderBook(Identifier.InstrumentId.generate());
+
+        ExecutorService executor = Executors.newFixedThreadPool(100);
+        CountDownLatch latch = new CountDownLatch(1000);
+        AtomicInteger success = new AtomicInteger();
+
+        for (int i = 0; i < 1000; i++) {
+            executor.submit(() -> {
+                try {
+                    Order order = createRandomOrder();
+                    engine.submit(new MatchingEngine.OrderCommand.Place(userId, instrumentId, order, new CompletableFuture<>())).join();
+                    success.incrementAndGet();
+                } finally { latch.countDown(); }
+            });
+        }
+
+        latch.await(30, TimeUnit.SECONDS);
+        assertThat(success.get()).isEqualTo(1000);
+    }
+
+    private Order createRandomOrder() { 
+        User user = User.create("bench", "bench@test.com", "hash", com.nextrade.common.enumtype.UserRole.TRADER);
+        user.verifyEmail();
+        Instrument instrument = Instrument.create(com.nextrade.common.valueobject.Symbol.of("BENCH"), "Bench", "NSE", "INR", 1, com.nextrade.common.valueobject.Price.of(100));
+        return Order.createMarket(user, instrument, OrderSide.BUY, Quantity.of(100), TimeInForce.DAY);
+    }
+}
+```
+
+### 11. `nextrade-integration-tests/src/test/java/com/nextrade/integration/TradingFlowIntegrationTest.java`
+
+```java
+package com.nextrade.integration;
+
+import com.nextrade.common.identifier.*;
+import com.nextrade.common.valueobject.*;
+import com.nextrade.common.enumtype.*;
+import com.nextrade.domain.instrument.Instrument;
+import com.nextrade.domain.user.User;
+import com.nextrade.domain.user.UserRole;
+import com.nextrade.persistence.repository.*;
+import org.junit.jupiter.api.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+
+import static org.assertj.core.api.Assertions.*;
+
+@SpringBootTest
+@Testcontainers
+class TradingFlowIntegrationTest {
+
+    @Container
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
+            .withDatabaseName("nextrade").withUsername("test").withPassword("test");
+
+    @DynamicPropertySource
+    static void configureProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", postgres::getJdbcUrl);
+        registry.add("spring.datasource.username", postgres::getUsername);
+        registry.add("spring.datasource.password", postgres::getPassword);
+        registry.add("nextrade.jwt.secret", () -> "test-secret-key-minimum-32-characters-long-for-testing");
+    }
+
+    @Autowired private UserJpaRepository userRepository;
+    @Autowired private InstrumentJpaRepository instrumentRepository;
+    @Autowired private OrderJpaRepository orderRepository;
+    @Autowired private WalletJpaRepository walletRepository;
+    @Autowired private TradingService tradingService;
+
+    private Identifier.UserId testUserId;
+    private Identifier.InstrumentId testInstrumentId;
+
+    @BeforeEach void setUp() {
+        User user = User.create("testuser", "test@example.com", "hashed", UserRole.TRADER);
+        user.verifyEmail();
+        testUserId = Identifier.UserId.of(userRepository.save(user).getUuid());
+
+        Instrument instrument = Instrument.create(com.nextrade.common.valueobject.Symbol.of("TEST"), "Test Corp", "NSE", "INR", 1, com.nextrade.common.valueobject.Price.of(100));
+        testInstrumentId = Identifier.InstrumentId.of(instrumentRepository.save(instrument).getUuid());
+    }
+
+    @Test void fullTradeLifecycle_marketOrder() throws Exception {
+        depositFunds(testUserId, Money.of(100000));
+        TradingService.OrderRequest buyRequest = new TradingService.OrderRequest(testInstrumentId, OrderSide.BUY, OrderType.MARKET, Quantity.of(10), java.util.Optional.empty(), java.util.Optional.empty(), TimeInForce.DAY);
+        TradingService.OrderResult buyResult = tradingService.placeOrder(buyRequest, testUserId).get(5, TimeUnit.SECONDS);
+        assertThat(buyResult.success()).isTrue();
+        assertThat(buyResult.status()).isEqualTo(OrderStatus.FILLED);
+        assertThat(buyResult.trades()).hasSize(1);
+
+        TradingService.PortfolioSummary portfolio = tradingService.getPortfolioSummary(testUserId);
+        assertThat(portfolio.holdings()).hasSize(1);
+        assertThat(portfolio.holdings().get(0).quantity()).isEqualTo(Quantity.of(10));
+    }
+
+    private void depositFunds(Identifier.UserId userId, Money amount) {
+        var walletOpt = walletRepository.findByUserId(userId.getValue());
+        if (walletOpt.isPresent()) {
+            com.nextrade.persistence.entity.WalletJpaEntity wallet = walletOpt.get();
+            wallet.setAvailableBalance(wallet.getAvailableBalance().add(amount.getAmount()));
+            walletRepository.save(wallet);
+        }
+    }
+}
+```
+
+### 12. Fix `nextrade-engine/src/main/java/com/nextrade/engine/matching/OrderBook.java` - unused field
+
+```java
+// In OrderBook.java - add @SuppressWarnings for unused tickSize field
+@SuppressWarnings("unused")
+private final Price tickSize;
+```
+
+### 13. Fix `nextrade-engine/src/main/java/com/nextrade/engine/matching/MatchingEngine.java` - constructor parameter order
+
+```java
+// In MatchingEngine constructor - ensure parameter order matches
+public MatchingEngine(int partitions, int bufferSize, Consumer<OrderBook.TradeExecution> tradePublisher) {
+    this.partitionCount = partitions;
+    this.bufferSize = bufferSize;
+    this.tradePublisher = tradePublisher;
+    // ... rest unchanged
+}
+```
+
+---
+
+## 📋 FINAL VERIFICATION CHECKLIST
+
+```bash
+# 1. Clean compile all modules
+mvn clean compile -DskipTests 2>&1 | tee compile.log
+
+# 2. Unit tests
+mvn test -B 2>&1 | tee unit-tests.log
+
+# 3. Integration tests with Testcontainers
+mvn verify -pl nextrade-integration-tests -B 2>&1 | tee integration-tests.log
+
+# 4. Architecture tests
+mvn test -pl nextrade-integration-tests -Dtest=ArchitectureRulesTest -B 2>&1 | tee arch-tests.log
+
+# 5. Property-based tests
+mvn test -pl nextrade-engine -Dtest=OrderBookPropertyTest -B 2>&1 | tee property-tests.log
+
+# 6. Concurrency tests
+mvn test -pl nextrade-engine -Dtest=MatchingEngineConcurrencyTest -B 2>&1 | tee concurrency-tests.log
+
+# 7. Security scans
+mvn org.owasp:dependency-check-maven:check -B 2>&1 | tee security-scan.log
+trufflehog filesystem . --no-update 2>&1 | tee secret-scan.log
+
+# 8. Docker build
+docker build -f nextrade-api/Dockerfile -t nextrade/api:test . 2>&1 | tee docker-build.log
+
+# 9. Full stack deployment
+docker compose -f docker-compose.prod.yml up -d
+sleep 60
+curl -f http://localhost:8080/api/actuator/health/liveness
+curl -f http://localhost:8080/api/actuator/health/readiness
+
+# 10. Auth flow test
+curl -X POST http://localhost:8080/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"test","email":"test@test.com","password":"SecurePass123!"}'
+```
+
+---
+
+## 📋 FINAL REPORT TEMPLATE
+
+After running all commands, report:
+
+```
+BUILD: [PASS/FAIL] - [error count if any]
+UNIT TESTS: [X/Y] PASS/FAIL
+INTEGRATION TESTS: [X/Y] PASS/FAIL
+ARCHITECTURE TESTS: [X/Y] PASS/FAIL
+PROPERTY TESTS: [X/Y] PASS/FAIL
+CONCURRENCY TESTS: [X/Y] PASS/FAIL
+SECURITY SCAN: [PASS/FAIL] - [CVE count]
+SECRET SCAN: [PASS/FAIL] - [secrets found]
+CONTAINER SCAN: [PASS/FAIL] - [vulnerabilities]
+DOCKER BUILD: [PASS/FAIL]
+HEALTH CHECKS: [PASS/FAIL]
+AUTH FLOW: [PASS/FAIL]
+
+REMAINING ISSUES: [List any unresolved]
+```
+
+---
+
+## ⚠️ IMPORTANT
+
+**I cannot run these commands for you.** You must:
+1. Create the repo structure (or use existing)
+2. Paste these corrected files into correct paths
+3. Run the commands yourself
+5. Paste actual terminal output
+
+**This is the only way to get a real 10/10 - by actually running the code.**
