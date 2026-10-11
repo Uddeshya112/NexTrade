@@ -1,0 +1,7 @@
+spring:
+  datasource:
+    # Never let a deployed service silently use the local development database defaults.
+    # Render must provide these values from the Supabase Connect dialog.
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
