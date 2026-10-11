@@ -22,6 +22,9 @@ public class OutboxEventEntity {
     @Column(name = "event_type", nullable = false, length = 100)
     private String eventType;
 
+    @Column(name = "status", nullable = false, length = 20)
+    private String status = "PENDING";
+
     @Column(name = "aggregate_type", length = 50)
     private String aggregateType;
 

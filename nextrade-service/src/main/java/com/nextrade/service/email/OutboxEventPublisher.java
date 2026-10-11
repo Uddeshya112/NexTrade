@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -23,8 +24,9 @@ public class OutboxEventPublisher {
     @Transactional
     public void publish(com.nextrade.service.OutboxEvent event) {
         OutboxEventEntity entity = new OutboxEventEntity();
-        entity.setEventId(UUID.randomUUID());
+        entity.setId(UUID.randomUUID());
         entity.setEventType(event.getType());
+        entity.setAggregateType(event.getAggregateType());
         entity.setAggregateId(event.getAggregateId());
         entity.setPayload(event.getPayload());
         entity.setCreatedAt(Instant.now());

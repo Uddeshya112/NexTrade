@@ -11,11 +11,18 @@ services:
     image: redis:7-alpine
     ports: ["6379:6379"]
   api:
-    build: ./nextrade-api
+    build:
+      context: .
+      dockerfile: nextrade-api/Dockerfile
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_started}
     environment:
+      DB_HOST: postgres
+      DB_NAME: nextrade
+      DB_USER: nextrade
+      DB_PASS: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the environment}
+      REDIS_HOST: redis
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET to at least 32 random bytes}
       JWT_KEY_ID_CURRENT: ${JWT_KEY_ID_CURRENT:-key-1}
       JWT_PREVIOUS_SECRET: ${JWT_PREVIOUS_SECRET:-}

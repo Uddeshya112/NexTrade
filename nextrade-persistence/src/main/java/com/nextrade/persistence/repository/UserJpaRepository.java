@@ -10,8 +10,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface UserJpaRepository extends JpaRepository<UserJpaEntity, Long> {
-    Optional<UserJpaEntity> findByUuid(UUID uuid);
+public interface UserJpaRepository extends JpaRepository<UserJpaEntity, UUID> {
     Optional<UserJpaEntity> findByUsername(String username);
     Optional<UserJpaEntity> findByEmail(String email);
     @Query("SELECT u FROM UserJpaEntity u WHERE LOWER(u.username) = LOWER(:usernameOrEmail) OR LOWER(u.email) = LOWER(:usernameOrEmail)")
@@ -22,14 +21,14 @@ public interface UserJpaRepository extends JpaRepository<UserJpaEntity, Long> {
     boolean existsByEmail(String email);
 
     @Modifying @Transactional
-    @Query(value = "UPDATE app_user SET failed_attempts = failed_attempts + 1, locked_until = CASE WHEN failed_attempts + 1 >= :maxAttempts THEN CURRENT_TIMESTAMP + make_interval(mins => :lockoutMinutes) ELSE locked_until END WHERE uuid = :userId", nativeQuery = true)
+    @Query(value = "UPDATE app_user SET failed_attempts = failed_attempts + 1, locked_until = CASE WHEN failed_attempts + 1 >= :maxAttempts THEN CURRENT_TIMESTAMP + make_interval(mins => :lockoutMinutes) ELSE locked_until END WHERE id = :userId", nativeQuery = true)
     int incrementFailedAttempts(@Param("userId") UUID userId, @Param("maxAttempts") int maxAttempts, @Param("lockoutMinutes") int lockoutMinutes);
 
     @Modifying @Transactional
-    @Query("UPDATE UserJpaEntity u SET u.failedAttempts = 0, u.lockedUntil = null WHERE u.uuid = :userId")
+    @Query("UPDATE UserJpaEntity u SET u.failedAttempts = 0, u.lockedUntil = null WHERE u.id = :userId")
     void resetFailedAttempts(@Param("userId") UUID userId);
 
     @Modifying @Transactional
-    @Query("UPDATE UserJpaEntity u SET u.lockedUntil = :lockedUntil WHERE u.uuid = :userId")
+    @Query("UPDATE UserJpaEntity u SET u.lockedUntil = :lockedUntil WHERE u.id = :userId")
     void setLockedUntil(@Param("userId") UUID userId, @Param("lockedUntil") java.time.Instant lockedUntil);
 }

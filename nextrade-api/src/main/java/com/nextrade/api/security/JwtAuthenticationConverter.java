@@ -3,7 +3,6 @@ package com.nextrade.api.security;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.stereotype.Component;
 
@@ -12,7 +11,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Component
-public class JwtAuthenticationConverter extends JwtAuthenticationConverter {
+public class JwtAuthenticationConverter extends org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter {
 
     public JwtAuthenticationConverter() {
         JwtGrantedAuthoritiesConverter converter = new JwtGrantedAuthoritiesConverter();

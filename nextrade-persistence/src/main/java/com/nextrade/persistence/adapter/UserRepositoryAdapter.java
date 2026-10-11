@@ -25,7 +25,7 @@ public class UserRepositoryAdapter implements UserRepository {
     @Override
     @Transactional(readOnly = true)
     public Optional<User> findById(UserId id) {
-        return jpaRepository.findByUuid(id.value()).map(this::toDomain);
+        return jpaRepository.findById(id.value()).map(this::toDomain);
     }
 
     @Override
@@ -42,8 +42,8 @@ public class UserRepositoryAdapter implements UserRepository {
 
     @Override
     public User save(User user) {
-        UserJpaEntity entity = jpaRepository.findByUuid(user.id().value()).orElseGet(UserJpaEntity::new);
-        entity.setUuid(user.id().value());
+        UserJpaEntity entity = jpaRepository.findById(user.id().value()).orElseGet(UserJpaEntity::new);
+        entity.setId(user.id().value());
         entity.setUsername(user.username().value());
         entity.setEmail(user.email().value());
         entity.setPasswordHash(user.passwordHash());
@@ -72,7 +72,7 @@ public class UserRepositoryAdapter implements UserRepository {
         Instant createdAt = entity.getCreatedAt() == null ? Instant.now() : entity.getCreatedAt();
         Instant updatedAt = entity.getUpdatedAt() == null ? createdAt : entity.getUpdatedAt();
         return new User(
-                com.nextrade.common.identifier.UserId.of(entity.getUuid()),
+                com.nextrade.common.identifier.UserId.of(entity.getId()),
                 entity.getUsername(), entity.getEmail(), entity.getPasswordHash(),
                 UserRole.valueOf(entity.getRole()), UserStatus.valueOf(entity.getStatus()),
                 entity.isEmailVerified(), entity.getFailedAttempts(), entity.getLockedUntil(),

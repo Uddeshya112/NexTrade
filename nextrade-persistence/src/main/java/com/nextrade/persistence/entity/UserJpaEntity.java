@@ -10,11 +10,9 @@ import java.time.Instant;
 @Data
 @NoArgsConstructor
 public class UserJpaEntity {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(name = "uuid", nullable = false, unique = true, updatable = false)
-    private java.util.UUID uuid;
+    @Id
+    @Column(name = "id", nullable = false, updatable = false)
+    private java.util.UUID id;
 
     @Column(name = "username", nullable = false, unique = true, length = 50)
     private String username;
@@ -55,7 +53,6 @@ public class UserJpaEntity {
 
     @PrePersist
     void onCreate() {
-        if (uuid == null) uuid = java.util.UUID.randomUUID();
         createdAt = java.time.Instant.now();
         updatedAt = java.time.Instant.now();
     }

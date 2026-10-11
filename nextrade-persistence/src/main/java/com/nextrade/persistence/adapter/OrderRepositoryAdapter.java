@@ -53,6 +53,15 @@ public class OrderRepositoryAdapter implements OrderRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<Order> findByUserIdAndStatus(UserId id, OrderStatus status) {
+        List<OrderEntity> entities = status == null
+                ? jpaRepository.findByUserIdOrderByCreatedAtDesc(id.value())
+                : jpaRepository.findByUserIdAndStatusOrderByCreatedAtDesc(id.value(), status.name());
+        return entities.stream().map(this::toDomain).toList();
+    }
+
+    @Override
     public Order save(Order order) {
         return toDomain(jpaRepository.save(toEntity(order)));
     }

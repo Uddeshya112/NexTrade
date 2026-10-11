@@ -87,7 +87,7 @@ public final class JwtChannelInterceptor implements ChannelInterceptor {
         } catch (MessageDeliveryException e) {
             throw e;
         } catch (RuntimeException e) {
-            throw new MessageDeliveryException("Invalid or expired WebSocket access token", e);
+            throw new MessageDeliveryException(null, "Invalid or expired WebSocket access token: " + e.getMessage());
         }
     }
 
@@ -156,7 +156,7 @@ public final class JwtChannelInterceptor implements ChannelInterceptor {
                 throw new MessageDeliveryException("STOMP message content length is invalid or exceeds 1 MiB");
             }
         } catch (NumberFormatException e) {
-            throw new MessageDeliveryException("Invalid STOMP content-length header", e);
+            throw new MessageDeliveryException(null, "Invalid STOMP content-length header: " + e.getMessage());
         }
     }
 }

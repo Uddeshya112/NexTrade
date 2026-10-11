@@ -9,4 +9,5 @@ import java.util.UUID;
 public interface InstrumentJpaRepository extends JpaRepository<InstrumentJpaEntity, Long> {
     Optional<InstrumentJpaEntity> findByUuid(UUID uuid);
     Optional<InstrumentJpaEntity> findBySymbol(String symbol);
+    java.util.List<InstrumentJpaEntity> findByStatusOrderBySymbolAsc(String status);
 }

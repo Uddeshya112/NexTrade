@@ -36,6 +36,12 @@ public class InstrumentRepositoryAdapter implements InstrumentRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public java.util.List<Instrument> findActive() {
+        return jpaRepository.findByStatusOrderBySymbolAsc("ACTIVE").stream().map(this::toDomain).toList();
+    }
+
+    @Override
     public Instrument save(Instrument instrument) {
         InstrumentJpaEntity entity = jpaRepository.findByUuid(instrument.id().value()).orElseGet(InstrumentJpaEntity::new);
         entity.setUuid(instrument.id().value());

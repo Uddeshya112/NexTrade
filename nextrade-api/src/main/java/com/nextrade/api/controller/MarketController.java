@@ -1,6 +1,7 @@
 package com.nextrade.api.controller;
 
-import com.nextrade.common.identifier.Identifier;
+import com.nextrade.domain.instrument.Instrument;
+import com.nextrade.domain.repository.InstrumentRepository;
 import com.nextrade.common.valueobject.Price;
 import com.nextrade.service.MarketDataService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,7 +13,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/market")
@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 public class MarketController {
 
     private final MarketDataService marketDataService;
+    private final InstrumentRepository instruments;
 
     @GetMapping("/prices")
     @Operation(summary = "Get current prices for instruments")
@@ -31,9 +32,13 @@ public class MarketController {
     @GetMapping("/instruments")
     @Operation(summary = "Get all active instruments")
     public ResponseEntity<List<InstrumentSummary>> getInstruments() {
-        // Implementation would fetch from InstrumentRepository
-        return ResponseEntity.ok(List.of());
+        return ResponseEntity.ok(instruments.findActive().stream().map(InstrumentSummary::from).toList());
     }
 
-    public record InstrumentSummary(com.nextrade.common.identifier.InstrumentId id, String symbol, String name, String exchange, String currency, boolean tradeable) {}
+    public record InstrumentSummary(String id, String symbol, String name, String exchange, String currency, boolean tradeable) {
+        static InstrumentSummary from(Instrument instrument) {
+            return new InstrumentSummary(instrument.id().asString(), instrument.symbol().value(), instrument.name(),
+                    instrument.exchange(), instrument.currency(), instrument.tradeable());
+        }
+    }
 }

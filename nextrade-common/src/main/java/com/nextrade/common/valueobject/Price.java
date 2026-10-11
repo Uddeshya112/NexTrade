@@ -9,7 +9,6 @@ public record Price(BigDecimal value, BigDecimal tickSize) implements Comparable
         Objects.requireNonNull(value,"value"); Objects.requireNonNull(tickSize,"tickSize");
         if(value.signum()<0) throw new IllegalArgumentException("Price cannot be negative");
         if(tickSize.signum()<=0) throw new IllegalArgumentException("Tick size must be positive");
-        value=value.stripTrailingZeros(); tickSize=tickSize.stripTrailingZeros();
     }
     public static Price of(String value,String tick){return new Price(new BigDecimal(value),new BigDecimal(tick));}
     public static Price of(BigDecimal value,BigDecimal tick){return new Price(value,tick);}

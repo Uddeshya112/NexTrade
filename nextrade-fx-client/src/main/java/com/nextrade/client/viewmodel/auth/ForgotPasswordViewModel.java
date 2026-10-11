@@ -8,6 +8,8 @@ import javafx.application.Platform;
 import javafx.beans.property.*;
 import javafx.concurrent.Task;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 public class ForgotPasswordViewModel {
     private final ApiClient apiClient;
@@ -44,7 +46,7 @@ public class ForgotPasswordViewModel {
             return;
         }
         sending.set(true); statusMessage.set("Sending reset token...");
-        Task<Void> task = new Task<>() { @Override protected Void call() { apiClient.forgotPassword(email.get()).get(); return null; } };
+        Task<Void> task = new Task<>() { @Override protected Void call() { await(apiClient.forgotPassword(email.get())); return null; } };
         task.setOnSucceeded(e -> { sending.set(false); currentStep.set(Step.VERIFY_CODE); statusMessage.set("Reset token sent to " + maskEmail(email.get())); });
         task.setOnFailed(e -> { sending.set(false); statusMessage.set("Failed to send token"); emailError.set("Email not found or error occurred"); });
         new Thread(task).start();
@@ -54,7 +56,7 @@ public class ForgotPasswordViewModel {
         if (token == null || token.length() < 32) { emailError.set("Please enter the full reset token from email"); return; }
         sending.set(true); statusMessage.set("Verifying token...");
         Task<AuthResponse.TokenVerificationResponse> task = new Task<>() {
-            @Override protected AuthResponse.TokenVerificationResponse call() { return apiClient.verifyResetToken(token).get(); }
+            @Override protected AuthResponse.TokenVerificationResponse call() { return await(apiClient.verifyResetToken(token)); }
         };
         task.setOnSucceeded(e -> {
             sending.set(false);
@@ -72,7 +74,7 @@ public class ForgotPasswordViewModel {
         if (!newPassword.equals(confirmPassword)) { emailError.set("Passwords do not match"); return; }
         if (newPassword.length() < 12) { emailError.set("Password must be at least 12 characters"); return; }
         sending.set(true); statusMessage.set("Resetting password...");
-        Task<Void> task = new Task<>() { @Override protected Void call() { apiClient.resetPassword(resetToken, newPassword).get(); return null; } };
+        Task<Void> task = new Task<>() { @Override protected Void call() { await(apiClient.resetPassword(resetToken, newPassword)); return null; } };
         task.setOnSucceeded(e -> { sending.set(false); statusMessage.set("Password reset successful. Redirecting to login..."); Platform.runLater(() -> NavigationManager.getInstance().navigateTo("login")); });
         task.setOnFailed(e -> {
             sending.set(false);
@@ -86,6 +88,17 @@ public class ForgotPasswordViewModel {
         if (email.get().trim().isEmpty()) { emailError.set("Email is required"); return false; }
         if (!email.get().matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) { emailError.set("Please enter a valid email address"); return false; }
         return true;
+    }
+
+    private static <T> T await(CompletableFuture<T> future) {
+        try {
+            return future.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Request interrupted", e);
+        } catch (ExecutionException e) {
+            throw new IllegalStateException("Request failed", e.getCause());
+        }
     }
 
     private String maskEmail(String email) {

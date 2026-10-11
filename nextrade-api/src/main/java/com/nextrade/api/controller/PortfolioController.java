@@ -1,6 +1,5 @@
 package com.nextrade.api.controller;
 
-import com.nextrade.common.identifier.Identifier;
 import com.nextrade.service.TradingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;

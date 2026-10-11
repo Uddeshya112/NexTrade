@@ -4,12 +4,11 @@ import com.nextrade.common.identifier.Identifier;
 import com.nextrade.common.valueobject.Price;
 import com.nextrade.common.valueobject.Quantity;
 import com.nextrade.common.enumtype.*;
-import com.nextrade.contracts.trading.OrderRequest;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.nextrade.domain.order.Order;
+import com.nextrade.engine.matching.TradeExecution;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "type", visible = true)
@@ -25,21 +24,29 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = OutboxEvent.StopCascadeLimitReached.class, name = "stop_cascade_limit_reached")
 })
 public sealed interface OutboxEvent permits OutboxEvent.OrderPlaced, OutboxEvent.TradeExecuted, OutboxEvent.OrderCancelled, OutboxEvent.EmailVerificationSent, OutboxEvent.PasswordResetSent, OutboxEvent.LoginAlert, OutboxEvent.SecurityAlert, OutboxEvent.WelcomeEmail, OutboxEvent.StopCascadeLimitReached {
-    String getType();
+    String type();
+    UUID aggregateId();
+    String payload();
+    default String getType() { return type(); }
+    default UUID getAggregateId() { return aggregateId(); }
+    default String getPayload() { return payload(); }
+    default String getAggregateType() { return "NexTradeEvent"; }
 
     record OrderPlaced(String type, UUID eventId, UUID aggregateId, String payload, Instant createdAt) implements OutboxEvent {
-        public OrderPlaced(Order order, OrderRequest request) {
-            this("order_placed", UUID.randomUUID(), order.getId().getValue(), 
+        public OrderPlaced(Order order, Object request) {
+            this("order_placed", UUID.randomUUID(), order.id().value(),
                 toJson(new OrderPlacedPayload(order, request)), Instant.now());
         }
 
-        record OrderPlacedPayload(Order order, OrderRequest request) {}
+        record OrderPlacedPayload(Order order, Object request) {}
     }
 
     record TradeExecuted(String type, UUID eventId, UUID aggregateId, String payload, Instant createdAt) implements OutboxEvent {
-        public TradeExecuted(OrderBook.TradeExecution execution) {
-            this("trade_executed", UUID.randomUUID(), execution.instrumentId().getValue(),
-                toJson(new TradeExecutedPayload(execution)), Instant.now());
+        public TradeExecuted(TradeExecution execution) {
+            this("trade_executed", UUID.randomUUID(), execution.instrumentId().value(),
+                toJson(new TradeExecutedPayload(execution.tradeId(), execution.buyOrderId(), execution.sellOrderId(),
+                    execution.buyer(), execution.seller(), execution.instrumentId(), execution.quantity(),
+                    execution.price(), execution.aggressorType(), execution.executedAt())), Instant.now());
         }
 
         record TradeExecutedPayload(com.nextrade.common.identifier.TradeId tradeId, com.nextrade.common.identifier.OrderId buyOrderId, com.nextrade.common.identifier.OrderId sellOrderId,
@@ -48,12 +55,12 @@ public sealed interface OutboxEvent permits OutboxEvent.OrderPlaced, OutboxEvent
     }
 
     record OrderCancelled(String type, UUID eventId, UUID aggregateId, String payload, Instant createdAt) implements OutboxEvent {
-        public OrderCancelled(com.nextrade.common.identifier.OrderId orderId, String reason, CancelSource source) {
-            this("order_cancelled", UUID.randomUUID(), orderId.getValue(),
+        public OrderCancelled(com.nextrade.common.identifier.OrderId orderId, String reason, String source) {
+            this("order_cancelled", UUID.randomUUID(), orderId.value(),
                 toJson(new OrderCancelledPayload(orderId, reason, source)), Instant.now());
         }
 
-        record OrderCancelledPayload(com.nextrade.common.identifier.OrderId orderId, String reason, CancelSource source) {}
+        record OrderCancelledPayload(com.nextrade.common.identifier.OrderId orderId, String reason, String source) {}
     }
 
     record EmailVerificationSent(String type, UUID eventId, UUID aggregateId, String payload, Instant createdAt) implements OutboxEvent {
@@ -98,7 +105,7 @@ public sealed interface OutboxEvent permits OutboxEvent.OrderPlaced, OutboxEvent
 
     record StopCascadeLimitReached(String type, UUID eventId, UUID aggregateId, String payload, Instant createdAt) implements OutboxEvent {
         public StopCascadeLimitReached(com.nextrade.common.identifier.InstrumentId instrumentId, int count) {
-            this("stop_cascade_limit_reached", UUID.randomUUID(), instrumentId.getValue(),
+            this("stop_cascade_limit_reached", UUID.randomUUID(), instrumentId.value(),
                 toJson(new StopCascadePayload(instrumentId, count)), Instant.now());
         }
         record StopCascadePayload(com.nextrade.common.identifier.InstrumentId instrumentId, int count) {}
