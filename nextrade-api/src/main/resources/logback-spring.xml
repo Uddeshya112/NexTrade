@@ -12,42 +12,48 @@
         <encoder><pattern>${CONSOLE_PATTERN}</pattern></encoder>
     </appender>
 
-    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${logPath}/${appName}.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>${logPath}/${appName}-%d{yyyy-MM-dd}.log.gz</fileNamePattern>
-            <maxHistory>30</maxHistory>
-            <totalSizeCap>1GB</totalSizeCap>
-        </rollingPolicy>
-        <encoder><pattern>${FILE_PATTERN}</pattern></encoder>
-    </appender>
+    <springProfile name="!prod">
+        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${logPath}/${appName}.log</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>${logPath}/${appName}-%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+                <maxHistory>30</maxHistory>
+                <totalSizeCap>1GB</totalSizeCap>
+            </rollingPolicy>
+            <encoder><pattern>${FILE_PATTERN}</pattern></encoder>
+        </appender>
 
-    <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${logPath}/${appName}-json.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>${logPath}/${appName}-json-%d{yyyy-MM-dd}.log.gz</fileNamePattern>
-            <maxHistory>30</maxHistory>
-        </rollingPolicy>
-        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-            <customFields>{"service":"${appName}","environment":"${spring.profiles.active:dev}"}</customFields>
-        </encoder>
-    </appender>
+        <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${logPath}/${appName}-json.log</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>${logPath}/${appName}-json-%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+                <maxHistory>30</maxHistory>
+            </rollingPolicy>
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <customFields>{"service":"${appName}","environment":"${spring.profiles.active:dev}"}</customFields>
+            </encoder>
+        </appender>
 
-    <appender name="ASYNC_CONSOLE" class="ch.qos.logback.classic.AsyncAppender">
-        <appender-ref ref="CONSOLE"/><queueSize>512</queueSize><neverBlock>true</neverBlock>
-    </appender>
-    <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
-        <appender-ref ref="FILE"/><queueSize>1024</queueSize><neverBlock>true</neverBlock>
-    </appender>
-    <appender name="ASYNC_JSON" class="ch.qos.logback.classic.AsyncAppender">
-        <appender-ref ref="JSON_FILE"/><queueSize>1024</queueSize><neverBlock>true</neverBlock>
-    </appender>
+        <appender name="ASYNC_CONSOLE" class="ch.qos.logback.classic.AsyncAppender">
+            <appender-ref ref="CONSOLE"/><queueSize>512</queueSize><neverBlock>true</neverBlock>
+        </appender>
+        <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+            <appender-ref ref="FILE"/><queueSize>1024</queueSize><neverBlock>true</neverBlock>
+        </appender>
+        <appender name="ASYNC_JSON" class="ch.qos.logback.classic.AsyncAppender">
+            <appender-ref ref="JSON_FILE"/><queueSize>1024</queueSize><neverBlock>true</neverBlock>
+        </appender>
 
-    <turboFilter class="ch.qos.logback.classic.turbo.MDCInsertingServletFilterTurboFilter"/>
+        <root level="${logLevel}">
+            <appender-ref ref="ASYNC_CONSOLE"/><appender-ref ref="ASYNC_FILE"/><appender-ref ref="ASYNC_JSON"/>
+        </root>
+    </springProfile>
 
-    <root level="${logLevel}">
-        <appender-ref ref="ASYNC_CONSOLE"/><appender-ref ref="ASYNC_FILE"/><appender-ref ref="ASYNC_JSON"/>
-    </root>
+    <springProfile name="prod">
+        <root level="${logLevel}">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
 
     <logger name="org.springframework.web" level="WARN"/>
     <logger name="org.hibernate.SQL" level="DEBUG"/>
