@@ -26,7 +26,7 @@
     <mockito.version>5.11.0</mockito.version>
     <assertj.version>3.24.2</assertj.version>
     <testcontainers.version>1.19.7</testcontainers.version>
-    <flyway.version>10.13.0</flyway.version>
+    <flyway.version>10.20.1</flyway.version>
     <postgres.version>42.7.3</postgres.version>
     <javafx.version>21.0.3</javafx.version>
     <caffeine.version>3.1.8</caffeine.version>

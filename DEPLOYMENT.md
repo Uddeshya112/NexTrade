@@ -45,8 +45,8 @@ Create a Supabase project, then use its **Session pooler** connection values for
 ```text
 SPRING_PROFILES_ACTIVE=prod
 FLYWAY_BASELINE_VERSION=7
-SPRING_DATASOURCE_URL=jdbc:postgresql://<pooler-host>:<pooler-port>/postgres?sslmode=require
-SPRING_DATASOURCE_USERNAME=postgres.<project-ref>
+SPRING_DATASOURCE_URL=jdbc:postgresql://<session-pooler-host>:5432/postgres?sslmode=require
+SPRING_DATASOURCE_USERNAME=postgres.cepissjsdjypatskmoku
 SPRING_DATASOURCE_PASSWORD=<database-password>
 JWT_SECRET=<at-least-32-random-bytes>
 JWT_KEY_ID_CURRENT=key-1
@@ -54,7 +54,7 @@ CORS_ALLOWED_ORIGINS=https://<your-vercel-domain>
 MANAGEMENT_HEALTH_DETAILS=never
 ```
 
-Use the exact host, port, database, and username from the Supabase dashboard's **Connect** dialog; pooler usernames include the project reference. Keep database credentials and JWT secrets only in the API host's secret manager. The NexTrade Supabase project has already been initialized through migration V7, so set `FLYWAY_BASELINE_VERSION=7` on that API host; Flyway will record the existing schema as its baseline and then apply future migrations. For a fresh empty database, leave this variable unset so Flyway runs V1 onward. Do not point this service at another existing database without reviewing its schema and migration history first.
+Use the exact session-pooler host from the Supabase dashboard's **Connect** dialog; the shared session pooler uses port `5432`, database `postgres`, and username `postgres.<project-ref>`. Do not put the username or password into the JDBC URL because they are supplied separately. Keep database credentials and JWT secrets only in the API host's secret manager. The NexTrade Supabase project has migrations V1–V8 recorded and its existing schema has no Flyway history table. The production profile therefore baselines an existing schema at V7, then applies V8 (which creates its indexes with `IF NOT EXISTS`); on a fresh empty database Flyway runs V1 onward. Do not point this service at another existing database without reviewing its schema and migration history first.
 
 ## Current service limits
 

@@ -5,3 +5,7 @@ spring:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
+  flyway:
+    # Baseline the existing Supabase schema at V7; V8 is idempotent if already applied.
+    # On a fresh empty database Flyway still runs V1 onward.
+    baseline-version: ${FLYWAY_BASELINE_VERSION:7}
