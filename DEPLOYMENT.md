@@ -40,6 +40,7 @@ Create a Supabase project, then use its **Session pooler** connection values for
 
 ```text
 SPRING_PROFILES_ACTIVE=prod
+FLYWAY_BASELINE_VERSION=7
 SPRING_DATASOURCE_URL=jdbc:postgresql://<pooler-host>:<pooler-port>/postgres?sslmode=require
 SPRING_DATASOURCE_USERNAME=postgres.<project-ref>
 SPRING_DATASOURCE_PASSWORD=<database-password>
@@ -49,7 +50,7 @@ CORS_ALLOWED_ORIGINS=https://<your-vercel-domain>
 MANAGEMENT_HEALTH_DETAILS=never
 ```
 
-Use the exact host, port, database, and username from the Supabase dashboard's **Connect** dialog; pooler usernames include the project reference. Keep database credentials and JWT secrets only in the API host's secret manager. Flyway applies this repository's schema on startup. Do not point this service at an existing production Supabase database without reviewing the pending Flyway migrations first.
+Use the exact host, port, database, and username from the Supabase dashboard's **Connect** dialog; pooler usernames include the project reference. Keep database credentials and JWT secrets only in the API host's secret manager. The NexTrade Supabase project has already been initialized through migration V7, so set `FLYWAY_BASELINE_VERSION=7` on that API host; Flyway will record the existing schema as its baseline and then apply future migrations. For a fresh empty database, leave this variable unset so Flyway runs V1 onward. Do not point this service at another existing database without reviewing its schema and migration history first.
 
 ## Current service limits
 
