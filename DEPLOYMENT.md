@@ -24,6 +24,10 @@ Requirements: Java 21, Maven 3.9+, Node.js 20.9+, npm, and Docker Compose.
 
 The API runs Flyway migrations on startup and seeds two clearly labelled demo instruments. Market data, email delivery, account balances, and order settlement are not production integrations yet. Do not use this build for real-money trading.
 
+## Railway API service
+
+Create a Railway service from this repository with the repository root as its build context. The root `Dockerfile` builds the Java API from the full Maven workspace; do not set the service's root directory to `nextrade-api`. Configure the environment variables below in Railway and use the generated HTTPS domain as `NEXT_PUBLIC_API_URL` in Vercel.
+
 ## Vercel frontend
 
 Import this GitHub repository in Vercel and set **Root Directory** to `nextrade-web`. Use Node.js 20.x or later and add this build environment variable:
