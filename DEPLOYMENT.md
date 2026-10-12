@@ -48,7 +48,7 @@ CORS_ALLOWED_ORIGINS=https://nex-trade-eight.vercel.app
 MANAGEMENT_HEALTH_DETAILS=never
 ```
 
-Use the exact database host, username, and password shown in the Supabase **Connect** dialog. The current deployment uses the Supabase session pooler on port 5432; keep `sslmode=require`. Store the database password only in Render's secret environment settings. Do not configure `JWT_SECRET`, Spring SMTP variables, or `NEXTRADE_EMAIL_VERIFICATION_ENABLED` for this Auth implementation. After the V9 migration is deployed, confirm Render logs show Flyway applying V9 before testing a protected API.
+Use the exact database host, username, and password shown in the Supabase **Connect** dialog. The current deployment uses the Supabase session pooler on port 5432; keep `sslmode=require`. Store the database password only in Render's secret environment settings. Do not configure `JWT_SECRET`, Spring SMTP variables, or `NEXTRADE_EMAIL_VERIFICATION_ENABLED` for this Auth implementation. Set `CORS_ALLOWED_ORIGINS` to the comma-separated exact origins allowed to call the API (production: `https://nex-trade-eight.vercel.app`; include localhost only if needed). This setting now applies to both REST and WebSocket handshakes; wildcard example domains are not accepted. After migration, confirm Render logs show Flyway applying V10 before testing order persistence.
 
 For local development, copy root `.env.example` to `.env`; set the local Postgres password, Supabase URL, and publishable/anon key. Copy `nextrade-web/.env.example` to `nextrade-web/.env.local` and set the matching `NEXT_PUBLIC_` values. Then run `docker compose up --build` from the repo root and `npm install && npm run dev` in `nextrade-web`.
 
