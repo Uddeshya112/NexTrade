@@ -49,15 +49,13 @@ cd nextrade-fx-client
 ## Configuration
 Environment variables:
 - `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS`
-- `JWT_SECRET` (min 32 chars)
+- `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (API token verification/Auth proxy)
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SITE_URL` (Vercel browser app)
+- `NEXT_PUBLIC_API_URL` (Vercel API address)
 - `POSTGRES_PASSWORD` (required by Docker Compose; use a unique strong secret)
-- Optional key rotation: `JWT_KEY_ID_CURRENT`, `JWT_PREVIOUS_SECRET`, `JWT_KEY_ID_PREVIOUS`
-- `JWT_CURRENT_SECRET`, `JWT_PREVIOUS_SECRET`
-- `JWT_KEY_ID_CURRENT`, `JWT_KEY_ID_PREVIOUS`
 - `REDIS_HOST`, `REDIS_SESSIONS_HOST`
 - `KAFKA_BOOTSTRAP_SERVERS`
 - `CORS_ALLOWED_ORIGINS`
-- `JWT_SECRET`
 
 ## Architecture
 - **Domain-Driven Design** with clean layer separation
@@ -66,14 +64,12 @@ Environment variables:
 - **CQRS** for read/write separation
 - **Event Sourcing** for audit trail
 
-## Security
-- Argon2id password hashing
-- JWT with HMAC-SHA256 + key rotation
-- Short-lived access tokens (15min) + refresh tokens (30 days)
-- Refresh token rotation with replay detection
-- Rate limiting (Redis + Lua scripts)
-- Account lockout after failed attempts
-- Secure token storage (OS credential vaults)
+## Security and deployment
+- Supabase Auth handles passwords, email confirmation, sessions, and password recovery.
+- Spring validates bearer tokens against Supabase Auth on protected REST and WebSocket requests.
+- The browser uses the Supabase SDK with PKCE and automatic session refresh; only the publishable/anon key is public.
+- Never place a Supabase service-role key in the frontend or repository.
+- Deployment variables and required Supabase URL configuration are documented in [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Testing
 ```bash
@@ -103,7 +99,6 @@ Proprietary - NexTrade Inc.
 
 ## Repair notes for VS Code diagnostics
 
-The project includes `docs/ERRORS-FIXED-FROM-VSCODE-DIAGNOSTICS.md`, which records the source-level fixes made from the supplied VS Code diagnostics. Open the extracted root folder (the folder containing this `pom.xml`) and run **Maven: Update Project** from the VS Code Command Palette after allowing Maven dependency download. Then run `mvn -U clean verify`. The complete build/test run has not been verified in this repair environment because Maven is not installed here.
+The Supabase email sender is limited to 2 emails per hour and is best-effort; configure custom SMTP in Supabase Auth for production delivery. Spring Boot SMTP is not used for authentication emails.
 
-
-**Security note:** the API intentionally refuses to start without `JWT_SECRET` containing at least 32 UTF-8 bytes. Do not commit secrets to this repository. The compose stack also requires `POSTGRES_PASSWORD`.
+The local Docker Compose stack requires `POSTGRES_PASSWORD`, `SUPABASE_URL`, and `SUPABASE_PUBLISHABLE_KEY`. See [DEPLOYMENT.md](DEPLOYMENT.md) for Render, Vercel, Supabase, and local settings.

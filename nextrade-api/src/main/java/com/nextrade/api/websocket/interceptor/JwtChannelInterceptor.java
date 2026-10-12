@@ -1,10 +1,6 @@
 package com.nextrade.api.websocket.interceptor;
 
-import com.nextrade.api.security.AccessTokenService;
-import com.nextrade.common.identifier.SessionId;
-import com.nextrade.service.ports.SessionRepository;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jws;
+import com.nextrade.api.security.SupabaseTokenVerifier;
 import org.springframework.lang.NonNull;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -18,7 +14,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,12 +22,10 @@ import java.util.UUID;
 public final class JwtChannelInterceptor implements ChannelInterceptor {
     private static final long MAX_STOMP_CONTENT_LENGTH = 1024L * 1024L;
 
-    private final AccessTokenService tokenService;
-    private final SessionRepository sessions;
+    private final SupabaseTokenVerifier tokenService;
 
-    public JwtChannelInterceptor(AccessTokenService tokenService, SessionRepository sessions) {
+    public JwtChannelInterceptor(SupabaseTokenVerifier tokenService) {
         this.tokenService = tokenService;
-        this.sessions = sessions;
     }
 
     @Override
@@ -64,30 +57,14 @@ public final class JwtChannelInterceptor implements ChannelInterceptor {
         }
 
         try {
-            Jws<Claims> jwt = tokenService.parse(header.substring(7).trim());
-            Claims claims = jwt.getPayload();
-            if (!"access".equals(claims.get("token_type", String.class))) {
-                throw new MessageDeliveryException("Access token required");
-            }
-            String role = claims.get("role", String.class);
-            String subject = claims.getSubject();
-            if (role == null || role.isBlank() || subject == null || subject.isBlank()) {
-                throw new MessageDeliveryException("Token is missing required claims");
-            }
-
-            UUID userUuid = UUID.fromString(subject);
-            SessionId sessionId = SessionId.parse(claims.getId());
-            var session = sessions.findActive(sessionId)
-                    .orElseThrow(() -> new MessageDeliveryException("Session is revoked or expired"));
-            if (!session.userId().value().equals(userUuid) || !session.expiresAt().isAfter(Instant.now())) {
-                throw new MessageDeliveryException("Session does not belong to this user or is expired");
-            }
+            SupabaseTokenVerifier.VerifiedUser user = tokenService.verify(header.substring(7).trim());
+            if (user == null) throw new MessageDeliveryException("Valid, confirmed Supabase access token required");
             return new UsernamePasswordAuthenticationToken(
-                    subject, null, List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+                    user.nextradeUserId(), null, List.of(new SimpleGrantedAuthority("ROLE_" + user.role())));
         } catch (MessageDeliveryException e) {
             throw e;
         } catch (RuntimeException e) {
-            throw new MessageDeliveryException(null, "Invalid or expired WebSocket access token: " + e.getMessage());
+            throw new MessageDeliveryException(null, "Invalid, expired, or unconfirmed Supabase access token");
         }
     }
 

@@ -7,7 +7,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -23,8 +22,8 @@ public class PortfolioController {
 
     @GetMapping
     @Operation(summary = "Get portfolio summary")
-    public ResponseEntity<com.nextrade.service.TradingService.PortfolioSummary> getPortfolio(@AuthenticationPrincipal Jwt jwt) {
-        com.nextrade.common.identifier.UserId userId = com.nextrade.common.identifier.UserId.of(UUID.fromString(jwt.getSubject()));
+    public ResponseEntity<com.nextrade.service.TradingService.PortfolioSummary> getPortfolio(@AuthenticationPrincipal String principal) {
+        com.nextrade.common.identifier.UserId userId = com.nextrade.common.identifier.UserId.of(UUID.fromString(principal));
         return ResponseEntity.ok(tradingService.getPortfolioSummary(userId));
     }
 }

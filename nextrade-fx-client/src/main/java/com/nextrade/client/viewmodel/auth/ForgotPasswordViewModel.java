@@ -46,42 +46,22 @@ public class ForgotPasswordViewModel {
             return;
         }
         sending.set(true); statusMessage.set("Sending reset token...");
-        Task<Void> task = new Task<>() { @Override protected Void call() { await(apiClient.forgotPassword(email.get())); return null; } };
-        task.setOnSucceeded(e -> { sending.set(false); currentStep.set(Step.VERIFY_CODE); statusMessage.set("Reset token sent to " + maskEmail(email.get())); });
+        Task<Void> task = new Task<>() { @Override protected Void call() {
+            var response = await(apiClient.forgotPassword(email.get()));
+            if (response.statusCode() < 200 || response.statusCode() >= 300) throw new IllegalStateException("Could not request a password reset");
+            return null;
+        } };
+        task.setOnSucceeded(e -> { sending.set(false); currentStep.set(Step.CODE_SENT); statusMessage.set("If the account exists, a reset link was sent to " + maskEmail(email.get()) + ". Open it in your browser to set a new password, then return here to sign in."); });
         task.setOnFailed(e -> { sending.set(false); statusMessage.set("Failed to send token"); emailError.set("Email not found or error occurred"); });
         new Thread(task).start();
     }
 
     public void verifyToken(String token) {
-        if (token == null || token.length() < 32) { emailError.set("Please enter the full reset token from email"); return; }
-        sending.set(true); statusMessage.set("Verifying token...");
-        Task<AuthResponse.TokenVerificationResponse> task = new Task<>() {
-            @Override protected AuthResponse.TokenVerificationResponse call() { return await(apiClient.verifyResetToken(token)); }
-        };
-        task.setOnSucceeded(e -> {
-            sending.set(false);
-            AuthResponse.TokenVerificationResponse result = task.getValue();
-            if (result instanceof AuthResponse.TokenVerificationResponse.Valid valid) {
-                resetToken = token;
-                currentStep.set(Step.RESET_PASSWORD); statusMessage.set("Token verified. Set your new password.");
-            } else { emailError.set("Invalid or expired token"); }
-        });
-        task.setOnFailed(e -> { sending.set(false); emailError.set("Verification failed"); });
-        new Thread(task).start();
+        emailError.set("Open the Supabase password recovery link in your browser and finish resetting there.");
     }
 
     public void resetPassword(String newPassword, String confirmPassword) {
-        if (!newPassword.equals(confirmPassword)) { emailError.set("Passwords do not match"); return; }
-        if (newPassword.length() < 12) { emailError.set("Password must be at least 12 characters"); return; }
-        sending.set(true); statusMessage.set("Resetting password...");
-        Task<Void> task = new Task<>() { @Override protected Void call() { await(apiClient.resetPassword(resetToken, newPassword)); return null; } };
-        task.setOnSucceeded(e -> { sending.set(false); statusMessage.set("Password reset successful. Redirecting to login..."); Platform.runLater(() -> NavigationManager.getInstance().navigateTo("login")); });
-        task.setOnFailed(e -> {
-            sending.set(false);
-            Throwable failure = task.getException();
-            emailError.set("Reset failed: " + (failure == null || failure.getMessage() == null ? "unknown error" : failure.getMessage()));
-        });
-        new Thread(task).start();
+        emailError.set("Open the Supabase password recovery link in your browser and finish resetting there.");
     }
 
     private boolean validateEmail() {

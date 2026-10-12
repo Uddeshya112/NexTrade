@@ -1,15 +1,12 @@
 package com.nextrade.api.controller;
 
-import com.nextrade.api.security.AccessTokenService;
-import com.nextrade.common.identifier.SessionId;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.nextrade.api.security.SupabaseAuthGateway;
+import com.nextrade.api.security.SupabaseTokenVerifier;
 import com.nextrade.common.identifier.UserId;
 import com.nextrade.contracts.auth.AuthResponse;
 import com.nextrade.domain.repository.UserRepository;
 import com.nextrade.domain.user.User;
-import com.nextrade.service.AuthResult;
-import com.nextrade.service.AuthService;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jws;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -22,103 +19,99 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/auth")
-@Tag(name = "Authentication", description = "Authentication endpoints")
+@Tag(name = "Authentication", description = "Supabase Auth endpoints")
 public class AuthController {
-    private final AuthService authService;
-    private final AccessTokenService accessTokens;
+    private final SupabaseAuthGateway supabase;
+    private final SupabaseTokenVerifier tokenVerifier;
     private final UserRepository users;
 
-    public AuthController(AuthService authService, AccessTokenService accessTokens, UserRepository users) {
-        this.authService = authService;
-        this.accessTokens = accessTokens;
+    public AuthController(SupabaseAuthGateway supabase, SupabaseTokenVerifier tokenVerifier, UserRepository users) {
+        this.supabase = supabase;
+        this.tokenVerifier = tokenVerifier;
         this.users = users;
     }
 
     @PostMapping("/register")
-    @Operation(summary = "Register new user")
+    @Operation(summary = "Create a Supabase Auth account")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody AuthResponse.RegisterRequest request) {
-        // Ignore any role supplied by a public client; privileged roles are assigned only administratively.
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(map(authService.register(request.username(), request.email(), request.password())));
+        try {
+            supabase.signup(request.email(), request.password(), request.username());
+            return ResponseEntity.status(HttpStatus.ACCEPTED).body(new AuthResponse.PendingVerification("", "", true,
+                    "Check your email and confirm the link before signing in."));
+        } catch (org.springframework.web.client.RestClientResponseException rejected) {
+            return ResponseEntity.badRequest().body(new AuthResponse.Failure("SIGNUP_FAILED",
+                    "Could not create the account. Check the email and password, or sign in if you already have an account."));
+        }
     }
 
     @PostMapping("/login")
-    @Operation(summary = "Login user")
+    @Operation(summary = "Sign in through Supabase Auth")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthResponse.LoginRequest request) {
-        AuthResponse result = map(authService.login(request.username(), request.password()));
-        return result instanceof AuthResponse.Failure ? ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(result) : ResponseEntity.ok(result);
+        try {
+            JsonNode session = supabase.login(request.username(), request.password());
+            AuthResponse result = success(session);
+            return result instanceof AuthResponse.Failure ? ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(result) : ResponseEntity.ok(result);
+        } catch (org.springframework.web.client.RestClientResponseException rejected) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new AuthResponse.Failure("INVALID_CREDENTIALS",
+                    "Sign in failed. Check your email and password, and confirm your email address."));
+        }
     }
 
     @PostMapping("/refresh")
-    @Operation(summary = "Refresh access token")
     public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody AuthResponse.RefreshRequest request) {
-        AuthResponse result = map(authService.refresh(request.refreshToken()));
-        return result instanceof AuthResponse.Failure ? ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(result) : ResponseEntity.ok(result);
+        try {
+            AuthResponse result = success(supabase.refresh(request.refreshToken()));
+            return result instanceof AuthResponse.Failure ? ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(result) : ResponseEntity.ok(result);
+        } catch (org.springframework.web.client.RestClientResponseException rejected) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new AuthResponse.Failure("INVALID_REFRESH_TOKEN", "Your session expired. Sign in again."));
+        }
     }
 
     @PostMapping("/logout")
-    @Operation(summary = "Logout current session")
-    public ResponseEntity<Void> logout(@RequestHeader("Authorization") String authorization) {
-        Jws<Claims> jwt = accessTokens.parse(bearerValue(authorization));
-        authService.logout(SessionId.parse(jwt.getPayload().getId()));
-        return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/logout-all")
-    @Operation(summary = "Logout all sessions")
-    public ResponseEntity<Void> logoutAll(@AuthenticationPrincipal String principal) {
-        authService.logoutAll(UserId.parse(principal));
+    public ResponseEntity<Void> logout(@RequestHeader(value = "Authorization", required = false) String authorization) {
+        if (authorization != null && authorization.startsWith("Bearer ")) supabase.logout(authorization.substring(7).trim(), false);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/forgot-password")
-    @Operation(summary = "Request password reset")
     public ResponseEntity<Void> forgotPassword(@Valid @RequestBody AuthResponse.ForgotPasswordRequest request) {
-        authService.startPasswordReset(request.email());
+        supabase.recover(request.email());
         return ResponseEntity.accepted().build();
     }
 
-    @PostMapping("/verify-reset-token")
-    @Operation(summary = "Verify password reset token")
-    public ResponseEntity<AuthResponse.TokenVerificationResponse> verifyResetToken(
-            @Valid @RequestBody AuthResponse.VerifyResetTokenRequest request) {
-        boolean valid = authService.verifyResetToken(request.token());
-        AuthResponse.TokenVerificationResponse response = valid
-                ? new AuthResponse.TokenVerificationResponse.Valid(true, "Token valid")
-                : new AuthResponse.TokenVerificationResponse.Invalid(false, "Invalid or expired token");
-        return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/reset-password")
-    @Operation(summary = "Reset password with token")
-    public ResponseEntity<Void> resetPassword(@Valid @RequestBody AuthResponse.ResetPasswordRequest request) {
-        authService.resetPasswordRaw(request.token(), request.newPassword());
-        return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/change-password")
-    @Operation(summary = "Change password")
-    public ResponseEntity<Void> changePassword(@AuthenticationPrincipal String principal,
-                                               @Valid @RequestBody AuthResponse.ChangePasswordRequest request) {
-        authService.changePassword(UserId.parse(principal), request.currentPassword(), request.newPassword());
-        return ResponseEntity.noContent().build();
+    @PostMapping("/resend-verification")
+    public ResponseEntity<AuthResponse> resendVerification(@Valid @RequestBody AuthResponse.ResendVerificationRequest request) {
+        supabase.resendSignup(request.email());
+        return ResponseEntity.accepted().body(new AuthResponse.PendingVerification("", "", true, "If the account needs confirmation, Supabase will send a new email."));
     }
 
     @PostMapping("/verify-email")
-    @Operation(summary = "Verify email with selector and code")
-    public ResponseEntity<Void> verifyEmail(@Valid @RequestBody AuthResponse.VerifyEmailRequest request) {
-        return authService.verifyEmail(request.selector(), request.code())
-                ? ResponseEntity.noContent().build() : ResponseEntity.badRequest().build();
+    public ResponseEntity<Void> verifyEmail() { return ResponseEntity.status(HttpStatus.GONE).build(); }
+
+    @PostMapping("/verify-reset-token")
+    public ResponseEntity<AuthResponse.TokenVerificationResponse> verifyResetToken() {
+        return ResponseEntity.status(HttpStatus.GONE).body(new AuthResponse.TokenVerificationResponse.Invalid(false,
+                "Password recovery is verified by Supabase on the reset page."));
     }
 
-    @PostMapping("/resend-verification")
-    @Operation(summary = "Resend verification email")
-    public ResponseEntity<AuthResponse> resendVerification(@Valid @RequestBody AuthResponse.ResendVerificationRequest request) {
-        return ResponseEntity.accepted().body(map(authService.resendVerification(request.email())));
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword() { return ResponseEntity.status(HttpStatus.GONE).build(); }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<Void> changePassword(@RequestHeader("Authorization") String authorization,
+            @Valid @RequestBody AuthResponse.ChangePasswordRequest request) {
+        supabase.updatePassword(bearer(authorization), request.newPassword());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/logout-all")
+    public ResponseEntity<Void> logoutAll(@RequestHeader("Authorization") String authorization) {
+        supabase.logout(bearer(authorization), true);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/me")
-    @Operation(summary = "Get current user profile")
+    @Operation(summary = "Get current NexTrade account profile")
     public ResponseEntity<UserProfile> getProfile(@AuthenticationPrincipal String principal) {
         User user = users.findById(UserId.parse(principal)).orElse(null);
         if (user == null) return ResponseEntity.notFound().build();
@@ -126,19 +119,20 @@ public class AuthController {
                 user.role().name(), user.status().name(), user.emailVerified()));
     }
 
-    private static AuthResponse map(AuthResult result) {
-        if (result instanceof AuthResult.Success success) {
-            return new AuthResponse.Success(success.accessToken(), success.refreshToken(), success.userId().asString(),
-                    success.role(), success.sessionId().asString());
+    private AuthResponse success(JsonNode session) {
+        String accessToken = session == null ? "" : session.path("access_token").asText("");
+        String refreshToken = session == null ? "" : session.path("refresh_token").asText("");
+        if (accessToken.isBlank() || refreshToken.isBlank()) {
+            return new AuthResponse.Failure("EMAIL_CONFIRMATION_REQUIRED", "Check your email and confirm your address before signing in.");
         }
-        if (result instanceof AuthResult.Pending pending) {
-            return new AuthResponse.PendingVerification(pending.userId() == null ? "" : pending.userId().asString(), pending.selector(), pending.deliveryConfigured(), pending.message());
-        }
-        AuthResult.Failure failure = (AuthResult.Failure) result;
-        return new AuthResponse.Failure(failure.code(), failure.message());
+        SupabaseTokenVerifier.VerifiedUser identity = tokenVerifier.verify(accessToken);
+        if (identity == null) return new AuthResponse.Failure("EMAIL_CONFIRMATION_REQUIRED", "Confirm your email before signing in.");
+        User user = users.findById(UserId.parse(identity.nextradeUserId())).orElse(null);
+        if (user == null) return new AuthResponse.Failure("ACCOUNT_NOT_FOUND", "Your NexTrade profile could not be loaded.");
+        return new AuthResponse.Success(accessToken, refreshToken, identity.nextradeUserId(), user.role().name(), UUID.randomUUID().toString());
     }
 
-    private static String bearerValue(String authorization) {
+    private static String bearer(String authorization) {
         if (authorization == null || !authorization.startsWith("Bearer ") || authorization.length() <= 7) {
             throw new IllegalArgumentException("Bearer token required");
         }

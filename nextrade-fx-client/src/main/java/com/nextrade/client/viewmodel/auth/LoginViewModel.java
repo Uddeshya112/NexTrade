@@ -30,7 +30,7 @@ public class LoginViewModel {
 
     private void setupValidation() {
         emailOrUsername.addListener((obs, old, val) -> {
-            if (val == null || val.trim().isEmpty()) emailError.set("Email or username is required");
+            if (val == null || val.trim().isEmpty()) emailError.set("Email address is required");
             else if (val.length() < 3) emailError.set("Must be at least 3 characters");
             else emailError.set("");
         });
@@ -93,7 +93,7 @@ public class LoginViewModel {
 
     private boolean validateForm() {
         boolean valid = true;
-        if (emailOrUsername.get().trim().isEmpty()) { emailError.set("Email or username is required"); valid = false; }
+        if (emailOrUsername.get().trim().isEmpty()) { emailError.set("Email address is required"); valid = false; }
         if (password.get().isEmpty()) { passwordError.set("Password is required"); valid = false; }
         else if (password.get().length() < 12) { passwordError.set("Password must be at least 12 characters"); valid = false; }
         return valid;

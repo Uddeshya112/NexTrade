@@ -1,40 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { authRedirect, getSupabase } from "@/lib/supabase";
 
 type Instrument = { id: string; symbol: string; name: string; exchange: string; currency: string; tradeable: boolean };
-type AuthResult = { type?: string; accessToken?: string; refreshToken?: string; userId?: string; selector?: string; deliveryConfigured?: boolean; message?: string; code?: string };
 
 const defaultApiBase = process.env.NODE_ENV === "production"
   ? "https://nextrade-6iia.onrender.com"
   : "http://localhost:8080";
 const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? defaultApiBase).replace(/\/$/, "");
-const authChanged = "nextrade-auth-change";
-
-function subscribeToAuth(callback: () => void) {
-  window.addEventListener(authChanged, callback);
-  window.addEventListener("storage", callback);
-  return () => {
-    window.removeEventListener(authChanged, callback);
-    window.removeEventListener("storage", callback);
-  };
-}
-
-function hasStoredSession() {
-  return Boolean(localStorage.getItem("nextrade.accessToken"));
-}
-
-async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("nextrade.accessToken") : null;
-  const response = await fetch(`${apiBase}${path}`, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
-  });
-  const body = response.status === 204 ? null : await response.json().catch(() => null);
-  if (!response.ok) throw new Error(body?.message ?? body?.detail ?? `Request failed (${response.status})`);
-  return body as T;
-}
-
 export default function Home() {
   const [instruments, setInstruments] = useState<Instrument[]>([]);
   const [apiState, setApiState] = useState<"checking" | "online" | "offline">("checking");
@@ -44,13 +18,20 @@ export default function Home() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [registering, setRegistering] = useState(false);
-  const [verificationPending, setVerificationPending] = useState(false);
   const [verificationRequired, setVerificationRequired] = useState(false);
-  const [verificationSelector, setVerificationSelector] = useState("");
-  const [verificationCode, setVerificationCode] = useState("");
-  const signedIn = useSyncExternalStore(subscribeToAuth, hasStoredSession, () => false);
+  const [forgotPassword, setForgotPassword] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
 
   useEffect(() => {
+    let unsubscribe = () => {};
+    try {
+      const supabase = getSupabase();
+      void supabase.auth.getSession().then(({ data }) => setSignedIn(Boolean(data.session?.user.email_confirmed_at)));
+      const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+        setSignedIn(Boolean(session?.user.email_confirmed_at));
+      });
+      unsubscribe = () => listener.subscription.unsubscribe();
+    } catch { /* Auth actions show the missing configuration when the user opens the sign-in form. */ }
     fetch(`${apiBase}/api/v1/market/instruments`)
       .then(async response => {
         if (!response.ok) throw new Error("API unavailable");
@@ -58,6 +39,7 @@ export default function Home() {
         setApiState("online");
       })
       .catch(() => setApiState("offline"));
+    return unsubscribe;
   }, []);
 
   const headline = useMemo(() => new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date()), []);
@@ -65,33 +47,34 @@ export default function Home() {
   async function submitAuth(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setNotice("");
     try {
-      if (verificationPending) {
-        await api<void>("/api/v1/auth/verify-email", { method: "POST", body: JSON.stringify({ selector: verificationSelector, code: verificationCode }) });
-        const result = await api<AuthResult>("/api/v1/auth/login", { method: "POST", body: JSON.stringify({ username: email, password }) });
-        if (result.accessToken) {
-          localStorage.setItem("nextrade.accessToken", result.accessToken);
-          if (result.refreshToken) localStorage.setItem("nextrade.refreshToken", result.refreshToken);
-          window.dispatchEvent(new Event(authChanged)); setVerificationPending(false); setAuthOpen(false); setNotice("Your email is verified. You’re signed in.");
-        }
+      const supabase = getSupabase();
+      if (forgotPassword) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: authRedirect("/auth/reset-password") });
+        if (error) throw error;
+        setNotice("If an account exists for that address, Supabase will email a password reset link.");
         return;
       }
-      const result = await api<AuthResult>(`/api/v1/auth/${registering ? "register" : "login"}`, {
-        method: "POST", body: JSON.stringify(registering ? { username: email.split("@")[0], email, password } : { username: email, password }),
-      });
-      if (result.accessToken) {
-        localStorage.setItem("nextrade.accessToken", result.accessToken);
-        if (result.refreshToken) localStorage.setItem("nextrade.refreshToken", result.refreshToken);
-        window.dispatchEvent(new Event(authChanged)); setAuthOpen(false); setNotice("You’re signed in.");
+      if (registering) {
+        const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: authRedirect("/auth/callback") } });
+        if (error) throw error;
+        setNotice("Check your email for next steps. If you already have an account, sign in or use Forgot password.");
       } else {
-        setNotice(result.message ?? result.code ?? "Check the details and try again.");
-        if (registering && result.selector && result.deliveryConfigured) {
-          setVerificationSelector(result.selector); setVerificationPending(true); setVerificationCode("");
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        if (!data.user?.email_confirmed_at) {
+          await supabase.auth.signOut({ scope: "local" });
+          setVerificationRequired(true);
+          throw new Error("Confirm your email from the link we sent before signing in.");
         }
+        setSignedIn(true); setAuthOpen(false); setNotice("You’re signed in.");
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not connect to NexTrade.";
-      setNotice(message);
-      if (!registering && message.toLowerCase().includes("verify your email")) { setVerificationRequired(true); setVerificationPending(false); }
+      const lowered = message.toLowerCase();
+      setNotice(lowered.includes("already registered") || lowered.includes("user already registered")
+        ? "If you already have a NexTrade account, sign in or use Forgot password."
+        : message);
+      if (!registering && (lowered.includes("confirm") || lowered.includes("not confirmed"))) setVerificationRequired(true);
     }
     finally { setBusy(false); }
   }
@@ -99,14 +82,14 @@ export default function Home() {
   async function resendVerification() {
     setBusy(true); setNotice("");
     try {
-      const result = await api<AuthResult>("/api/v1/auth/resend-verification", { method: "POST", body: JSON.stringify({ email }) });
-      setNotice(result.message ?? "Check your inbox.");
-      if (result.selector && result.deliveryConfigured) { setVerificationSelector(result.selector); setVerificationPending(true); setVerificationCode(""); }
-    } catch (error) { setNotice(error instanceof Error ? error.message : "Could not resend the verification code."); }
+      const { error } = await getSupabase().auth.resend({ type: "signup", email, options: { emailRedirectTo: authRedirect("/auth/callback") } });
+      if (error) throw error;
+      setNotice("If the account needs confirmation, Supabase will send a new email.");
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Could not resend the confirmation email."); }
     finally { setBusy(false); }
   }
 
-  function signOut() { localStorage.removeItem("nextrade.accessToken"); localStorage.removeItem("nextrade.refreshToken"); window.dispatchEvent(new Event(authChanged)); setNotice("You’ve signed out."); }
+  async function signOut() { await getSupabase().auth.signOut(); setSignedIn(false); setNotice("You’ve signed out."); }
 
   return <main className="shell">
     <aside className="rail">
@@ -157,6 +140,6 @@ export default function Home() {
     </section>
 
     {notice && <div className="toast" role="status" onClick={() => setNotice("")}>{notice}<button aria-label="Dismiss">×</button></div>}
-    {authOpen && <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setAuthOpen(false); }}><section className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title"><button className="modal-close" onClick={() => setAuthOpen(false)} aria-label="Close">×</button><div className="modal-brand">N<span>.</span></div><p className="section-kicker">YOUR MARKET WORKSPACE</p><h2 id="auth-title">{verificationPending ? "Verify your email" : registering ? "Create your account" : "Welcome back"}</h2><p className="modal-copy">{verificationPending ? `Enter the six-digit code sent to ${email}.` : registering ? "Set up your NexTrade access." : "Sign in to continue to your workspace."}</p><form onSubmit={submitAuth}><label>Email address<input type="email" autoComplete="username" required value={email} onChange={event => setEmail(event.target.value)} placeholder="you@example.com" /></label>{verificationPending ? <label>Verification code<input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required value={verificationCode} onChange={event => setVerificationCode(event.target.value)} placeholder="6-digit code" /></label> : <label>Password<input type="password" autoComplete={registering ? "new-password" : "current-password"} required minLength={8} value={password} onChange={event => setPassword(event.target.value)} placeholder="At least 8 characters" /></label>}<button className="button button-dark submit-button" disabled={busy}>{busy ? "Please wait…" : verificationPending ? "Verify and sign in ↗" : registering ? "Create account ↗" : "Sign in ↗"}</button></form>{notice && <p className="form-notice" role="alert">{notice}</p>}{verificationPending ? <p className="switch-auth">Didn’t get the code? <button disabled={busy} onClick={resendVerification}>Resend code</button><br /><button onClick={() => { setVerificationPending(false); setNotice(""); }}>Back to sign in</button></p> : verificationRequired ? <p className="switch-auth">Account not verified? <button disabled={busy} onClick={resendVerification}>Send a verification code</button><br /><button onClick={() => { setVerificationRequired(false); setNotice(""); }}>Back to sign in</button></p> : <p className="switch-auth">{registering ? "Already have an account?" : "New to NexTrade?"} <button onClick={() => { setRegistering(!registering); setVerificationPending(false); setVerificationRequired(false); setNotice(""); }}>{registering ? "Sign in" : "Create an account"}</button></p>}{registering && !verificationPending && <small className="verification-note">We’ll email a verification code before your account can sign in.</small>}</section></div>}
+    {authOpen && <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setAuthOpen(false); }}><section className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title"><button className="modal-close" onClick={() => setAuthOpen(false)} aria-label="Close">×</button><div className="modal-brand">N<span>.</span></div><p className="section-kicker">YOUR MARKET WORKSPACE</p><h2 id="auth-title">{forgotPassword ? "Reset your password" : registering ? "Create your account" : "Welcome back"}</h2><p className="modal-copy">{forgotPassword ? "We’ll send a secure password reset link to your email." : registering ? "Set up your NexTrade access." : "Sign in to continue to your workspace."}</p><form onSubmit={submitAuth}><label>Email address<input type="email" autoComplete="email" required value={email} onChange={event => setEmail(event.target.value)} placeholder="you@example.com" /></label>{!forgotPassword && <label>Password<input type="password" autoComplete={registering ? "new-password" : "current-password"} required minLength={8} value={password} onChange={event => setPassword(event.target.value)} placeholder="At least 8 characters" /></label>}<button className="button button-dark submit-button" disabled={busy}>{busy ? "Please wait…" : forgotPassword ? "Send reset link ↗" : registering ? "Create account ↗" : "Sign in ↗"}</button></form>{notice && <p className="form-notice" role="status">{notice}</p>}{verificationRequired && !forgotPassword && <p className="switch-auth">Didn’t receive the confirmation email? <button disabled={busy} onClick={resendVerification}>Resend it</button></p>}{forgotPassword ? <p className="switch-auth"><button onClick={() => { setForgotPassword(false); setNotice(""); }}>Back to sign in</button></p> : !registering && <p className="switch-auth"><button onClick={() => { setForgotPassword(true); setNotice(""); }}>Forgot password?</button></p>}<p className="switch-auth">{registering ? "Already have an account?" : "New to NexTrade?"} <button onClick={() => { setRegistering(!registering); setForgotPassword(false); setVerificationRequired(false); setNotice(""); }}>{registering ? "Sign in" : "Create an account"}</button></p>{registering && <small className="verification-note">We’ll email a confirmation link. You must confirm your email before signing in.</small>}</section></div>}
   </main>;
 }

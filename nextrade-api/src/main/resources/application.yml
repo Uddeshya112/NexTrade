@@ -15,14 +15,6 @@ spring:
       maximum-pool-size: ${DB_POOL_MAX_SIZE:5}
       minimum-idle: ${DB_POOL_MIN_IDLE:1}
       connection-timeout: 30000
-  mail:
-    host: ${SPRING_MAIL_HOST:localhost}
-    port: ${SPRING_MAIL_PORT:587}
-    username: ${SPRING_MAIL_USERNAME:}
-    password: ${SPRING_MAIL_PASSWORD:}
-    properties:
-      mail.smtp.auth: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH:true}
-      mail.smtp.starttls.enable: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE:true}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -62,16 +54,10 @@ spring:
       enable-auto-commit: false
 
 nextrade:
-  mail:
-    verification-enabled: ${NEXTRADE_EMAIL_VERIFICATION_ENABLED:false}
-    from: ${NEXTRADE_MAIL_FROM:}
-  jwt:
-    secret: ${JWT_SECRET}
-    access-token-ttl-minutes: 15
-    refresh-token-ttl-days: 30
-    keys:
-      current: ${JWT_KEY_ID_CURRENT:key-1}
-      previous: ${JWT_KEY_ID_PREVIOUS:}
+  supabase:
+    url: ${SUPABASE_URL:}
+    publishable-key: ${SUPABASE_PUBLISHABLE_KEY:${SUPABASE_ANON_KEY:}}
+    web-url: ${NEXTRADE_WEB_URL:https://nex-trade-eight.vercel.app}
   market:
     tick-interval-ms: 1000
   matching:
