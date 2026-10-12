@@ -22,6 +22,8 @@
 - There are no persisted candle/history APIs, planned-risk snapshots, deterministic trade reviews, analytics/journal, replay, server-side Pro entitlements, or billing webhook flow.
 - The current web client does not complete the full sign-in → paper order → reconciled portfolio → review/journal journey. Authentication uses Supabase; it does not itself complete the backend account/trading workflow.
 - No browser end-to-end run or PostgreSQL/Testcontainers run was performed in this environment. Docker is unavailable here. Startup against configured Supabase/PostgreSQL must still be verified.
+- The first GitHub Actions run passed Maven, frontend lint and frontend build, then failed in the optional Maven dependency-submission action while parsing its dependency graph. That action has been removed; the next PR run must confirm the workflow is green.
+- `npm ci` reported 5 high-severity dependency advisories. Review `npm audit` details and update or document affected packages before a public release.
 - Live broker execution and live-money trading are out of scope and must remain disabled. Do not enable billing or claim market data is licensed for redistribution without owner and professional review.
 
 ## Required before release
