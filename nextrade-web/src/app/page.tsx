@@ -5,7 +5,10 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 type Instrument = { id: string; symbol: string; name: string; exchange: string; currency: string; tradeable: boolean };
 type AuthResult = { type?: string; accessToken?: string; refreshToken?: string; userId?: string; selector?: string; deliveryConfigured?: boolean; message?: string; code?: string };
 
-const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080").replace(/\/$/, "");
+const defaultApiBase = process.env.NODE_ENV === "production"
+  ? "https://nextrade-6iia.onrender.com"
+  : "http://localhost:8080";
+const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? defaultApiBase).replace(/\/$/, "");
 const authChanged = "nextrade-auth-change";
 
 function subscribeToAuth(callback: () => void) {
