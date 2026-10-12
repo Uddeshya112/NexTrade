@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type WidgetKind = "market-overview" | "advanced-chart" | "ticker-tape" | "timeline";
 
@@ -46,10 +46,12 @@ function configFor(kind: WidgetKind, symbol?: string) {
 
 export function TradingViewWidget({ kind, symbol, title }: { kind: WidgetKind; symbol?: string; title: string }) {
   const root = useRef<HTMLDivElement>(null);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     const target = root.current;
     if (!target) return;
+    setLoadError(false);
     target.replaceChildren();
     const container = document.createElement("div");
     container.className = "tradingview-widget-container__widget";
@@ -59,12 +61,14 @@ export function TradingViewWidget({ kind, symbol, title }: { kind: WidgetKind; s
     script.src = scriptByKind[kind];
     script.async = true;
     script.textContent = JSON.stringify(configFor(kind, symbol));
+    script.onerror = () => setLoadError(true);
     target.append(container, script);
-    return () => target.replaceChildren();
+    return () => { script.onerror = null; target.replaceChildren(); };
   }, [kind, symbol]);
 
   return <section className={`tv-panel tv-${kind}`} aria-label={title}>
     <div ref={root} className="tradingview-widget-container" />
+    {loadError && <p className="tv-load-error" role="status">TradingView could not load this market widget. Check your connection or browser content blocker, then reload.</p>}
     <a className="tv-credit" href="https://www.tradingview.com/" target="_blank" rel="noreferrer">Data and charts by TradingView ↗</a>
   </section>;
 }

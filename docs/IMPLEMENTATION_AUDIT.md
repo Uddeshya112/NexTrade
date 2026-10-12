@@ -103,3 +103,6 @@ The repository is a substantial Java 21/Spring multi-module paper-trading codeba
 - Added tests for retry identity, no duplicate matching, and changed-payload conflict.
 - Verification: `mvn -B package` passes with **961 tests, 0 failures, 0 errors, 0 skipped**. `git diff --check` passes.
 - These changes do not implement account cash/position reservation or settlement. Full account balances and live trading must remain unavailable; market simulation/data, profile, and deployment checks remain outstanding.
+## Frontend status correction (12 October 2026)
+
+The active frontend is Next.js (not the standalone HTML described by the pack). The account dashboard already attributes market widgets to TradingView and labels portfolio, personal watchlists, AI insights and alerts as unavailable/shared. The top-bar label was corrected from a generic “External market feed” green indicator to “TradingView widgets”; widget script load failures now produce a visible accessible message. See `docs/FRONTEND_QA.md` for manual checks. `npm run lint` and `npx tsc --noEmit` passed. The most recent repeat `npm run build` was blocked by an existing Next build lock; the initial combined command output was not captured, so build status for this edit is unverified.

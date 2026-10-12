@@ -167,7 +167,7 @@ export default function Home() {
 
     <section className="dashboard-content">
       <header className="dashboard-topbar"><div className="mobile-brand">NexTrade<span>.</span></div><div className="topbar-date">{today}</div>
-        <div className="topbar-actions"><span className="data-status"><i />External market feed</span>
+        <div className="topbar-actions"><span className="data-status"><i aria-hidden="true" />TradingView widgets</span>
           {signedIn ? <div className="account-chip"><span className="account-avatar">{accountEmail.slice(0, 1).toUpperCase() || "U"}</span><span className="account-address">{accountEmail}</span><button className="subtle-button" onClick={signOut}>Sign out</button></div>
             : <button className="primary-button" onClick={() => { setNotice(""); setAuthOpen(true); }}>Sign in <span>↗</span></button>}
         </div>
