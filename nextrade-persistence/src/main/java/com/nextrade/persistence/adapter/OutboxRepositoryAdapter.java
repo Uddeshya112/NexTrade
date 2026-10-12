@@ -10,7 +10,7 @@ import java.util.List;
 
 /** Temporary in-process adapter for local development. Replace with a transactional database outbox for deployment. */
 @Repository
-public final class OutboxRepositoryAdapter implements EventOutbox {
+public class OutboxRepositoryAdapter implements EventOutbox {
     private final List<DomainEvent> events = Collections.synchronizedList(new ArrayList<>());
 
     @Override
