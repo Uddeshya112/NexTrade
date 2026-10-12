@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { authRedirect, getSupabase } from "@/lib/supabase";
 import { TradingViewWidget } from "@/components/tradingview-widget";
+import { MarketDataPanel } from "@/components/market-data-panel";
 
 type View = "Overview" | "Markets" | "Watchlist" | "Portfolio" | "News" | "AI Insights" | "Alerts" | "Profile" | "Settings";
 type Profile = { fullName: string; phone: string; country: string };
@@ -188,9 +189,9 @@ export default function Home() {
           </div>
         </>}
 
-        {activeView === "Markets" && <div className="single-market"><div className="surface-card"><div className="card-heading"><div><span className="card-kicker">MARKET OVERVIEW</span><h2>Explore market symbols</h2></div><span className="source-tag">TradingView</span></div><TradingViewWidget kind="market-overview" title="Stocks, indices and crypto market overview" /></div><div className="surface-card"><div className="card-heading"><div><span className="card-kicker">INTERACTIVE CHART</span><h2>Choose a symbol in the chart</h2></div></div><TradingViewWidget kind="advanced-chart" title="Interactive stock market chart" /></div></div>}
+        {activeView === "Markets" && <div className="single-market"><MarketDataPanel /><div className="surface-card"><div className="card-heading"><div><span className="card-kicker">MARKET OVERVIEW</span><h2>Explore market symbols</h2></div><span className="source-tag">TradingView · separate source</span></div><TradingViewWidget kind="market-overview" title="Stocks, indices and crypto market overview" /></div><div className="surface-card"><div className="card-heading"><div><span className="card-kicker">INTERACTIVE CHART</span><h2>Choose a symbol in the chart</h2></div></div><TradingViewWidget kind="advanced-chart" title="Interactive stock market chart" /></div></div>}
 
-        {activeView === "Watchlist" && <div className="surface-card"><div className="card-heading"><div><span className="card-kicker">SYMBOLS</span><h2>Market watch</h2><p>Switch symbols using the embedded widget controls. This is a shared public list, not saved to your account.</p></div><span className="source-tag">TradingView</span></div><TradingViewWidget kind="market-overview" title="Public market symbol list" /></div>}
+        {activeView === "Watchlist" && <MarketDataPanel />}
 
         {activeView === "News" && <div className="surface-card news-full"><div className="card-heading"><div><span className="card-kicker">THIRD-PARTY FEED</span><h2>Market news</h2><p>Headlines are provided and attributed by TradingView.</p></div></div><TradingViewWidget kind="timeline" title="Market news timeline" /></div>}
 

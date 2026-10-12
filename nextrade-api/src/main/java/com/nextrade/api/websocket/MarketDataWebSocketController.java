@@ -2,7 +2,7 @@ package com.nextrade.api.websocket;
 
 import com.nextrade.common.identifier.InstrumentId;
 import com.nextrade.domain.repository.InstrumentRepository;
-import com.nextrade.engine.market.MarketSimulationEngine;
+import com.nextrade.contracts.trading.MarketQuote;
 import com.nextrade.service.MarketDataService;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.annotation.SendToUser;
@@ -41,5 +41,5 @@ public final class MarketDataWebSocketController {
     }
 
     public record SubscriptionResponse(String instrumentId, String topic, boolean quoteAvailable,
-                                       MarketSimulationEngine.MarketQuote quote) { }
+                                       MarketQuote quote) { }
 }
