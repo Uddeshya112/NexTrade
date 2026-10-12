@@ -8,7 +8,12 @@ export function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
     || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !publishableKey) throw new Error("Supabase is not configured. Set the public Supabase URL and publishable key in Vercel.");
+  const missing: string[] = [];
+  if (!url) missing.push("NEXT_PUBLIC_SUPABASE_URL");
+  if (!publishableKey) missing.push("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY)");
+  if (!url || !publishableKey) {
+    throw new Error(`Supabase configuration is missing ${missing.join(" and ")}. Add the variable(s) to Vercel for Production, then redeploy.`);
+  }
   client = createClient(url, publishableKey, {
     auth: { flowType: "pkce", autoRefreshToken: true, persistSession: true, detectSessionInUrl: true },
   });
