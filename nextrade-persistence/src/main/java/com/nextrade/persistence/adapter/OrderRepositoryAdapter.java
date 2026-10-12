@@ -62,6 +62,12 @@ public class OrderRepositoryAdapter implements OrderRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Optional<Order> findByUserIdAndClientOrderId(UserId userId, String clientOrderId) {
+        return jpaRepository.findByUserIdAndClientOrderId(userId.value(), clientOrderId).map(this::toDomain);
+    }
+
+    @Override
     public Order save(Order order) {
         return toDomain(jpaRepository.save(toEntity(order)));
     }
@@ -76,6 +82,7 @@ public class OrderRepositoryAdapter implements OrderRepository {
         entity.setStatus(order.status().name());
         entity.setTif(order.tif().name());
         entity.setQuantity(order.workingQuantity().value());
+        entity.setOriginalQuantity(order.originalQuantity().value());
         entity.setFilledQuantity(order.filledQuantity().value());
         entity.setLimitPrice(order.limitPrice() == null ? null : order.limitPrice().value());
         entity.setStopPrice(order.stopPrice() == null ? null : order.stopPrice().value());
@@ -102,7 +109,7 @@ public class OrderRepositoryAdapter implements OrderRepository {
         Instant updated = entity.getUpdatedAt() == null ? created : entity.getUpdatedAt();
         return Order.reconstitute(OrderId.of(entity.getId()), user, instrument,
                 OrderSide.valueOf(entity.getSide()), OrderType.valueOf(entity.getType()),
-                new Quantity(entity.getQuantity()), new Quantity(entity.getQuantity()),
+                new Quantity(entity.getOriginalQuantity()), new Quantity(entity.getQuantity()),
                 new Quantity(entity.getFilledQuantity()), limit, stop, average,
                 TimeInForce.valueOf(entity.getTif()), entity.getClientOrderId(),
                 OrderStatus.valueOf(entity.getStatus()), entity.getExpiresAt(), entity.getTriggeredAt(),

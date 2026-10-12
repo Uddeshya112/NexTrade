@@ -62,7 +62,7 @@ Build warnings observed include Java platform-default UTF-8 encoding and JavaFX 
 
 ## Baseline blockers and risks
 
-1. **CI package failure:** the integration-test module imports API security classes from an executable/repackaged Spring Boot jar. Separate the plain API library artifact from its executable artifact or otherwise change module packaging/dependency structure so `mvn -B package` and `verify` compile tests correctly; do not skip those tests.
+1. **CI package failure (resolved):** the executable Spring Boot artifact now uses a classifier, leaving the plain API jar usable by downstream modules. `mvn -B package` passes with all tests enabled.
 2. **Portfolio endpoint is guaranteed to fail:** `TradingService.getPortfolioSummary` throws unconditionally. No portfolio UI should imply account values until the ledger/positions path is implemented and reconciled.
 3. **Orders are not a complete paper-trading account flow:** the current order path lacks connected cash/position reservation and persisted fill/settlement reconciliation. The unique index alone does not make client-order retries return the original order.
 4. **Market data paths do not join up:** frontend widgets are third-party embeds; backend prices are in-memory simulation values without mode/source/time fields; no candles or functioning WebSocket publisher were found.
@@ -95,3 +95,11 @@ The rows in **Build and validation results** and **Baseline blockers and risks**
 ## Audit conclusion
 
 The repository is a substantial Java 21/Spring multi-module paper-trading codebase with a buildable Next.js frontend and a large passing `mvn test` suite. It is **not yet a working end-to-end trading workspace**: the checked-in GitHub CI package command fails, the portfolio endpoint deliberately throws, order accounting is disconnected, and market data is split between third-party browser widgets and an in-memory backend simulator. No production deployment or live database behavior is verified. Per Prompt 0, this audit stops here; no feature implementation was started.
+
+## Current implementation milestone (12 October 2026)
+
+- Fixed order retry idempotency at the service boundary. Requests require a non-empty client order ID; exact retries return the existing order, changed payloads using the same key receive HTTP 409, and a concurrent insert collision is re-read before matching.
+- Added `original_quantity` through additive Flyway migration V10, backfilled from the existing `quantity` column. The persistence adapter now round-trips original and working quantities separately, retaining original size after order modification or partial fill.
+- Added tests for retry identity, no duplicate matching, and changed-payload conflict.
+- Verification: `mvn -B package` passes with **961 tests, 0 failures, 0 errors, 0 skipped**. `git diff --check` passes.
+- These changes do not implement account cash/position reservation or settlement. Full account balances and live trading must remain unavailable; market simulation/data, profile, and deployment checks remain outstanding.

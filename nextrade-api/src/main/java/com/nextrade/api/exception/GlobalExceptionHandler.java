@@ -24,6 +24,12 @@ public class GlobalExceptionHandler {
             .body(new ErrorResponse("INSUFFICIENT_FUNDS", ex.getMessage()));
     }
 
+    @ExceptionHandler(IdempotencyConflictException.class)
+    public ResponseEntity<ErrorResponse> handleIdempotencyConflict(IdempotencyConflictException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(new ErrorResponse("IDEMPOTENCY_CONFLICT", ex.getMessage()));
+    }
+
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ErrorResponse> handleIllegalState(IllegalStateException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
