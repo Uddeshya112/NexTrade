@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "com.nextrade")
 @EntityScan(basePackages = "com.nextrade.persistence.entity")
 @EnableJpaRepositories(basePackages = "com.nextrade.persistence.repository")
 @EnableAsync
