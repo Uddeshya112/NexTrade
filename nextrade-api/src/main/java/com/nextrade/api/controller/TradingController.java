@@ -5,6 +5,7 @@ import com.nextrade.contracts.trading.OrderRequest;
 import com.nextrade.contracts.trading.ModifyOrderRequest;
 import com.nextrade.contracts.trading.OrderResponse;
 import com.nextrade.service.TradingService;
+import com.nextrade.service.ExecutionQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
 public class TradingController {
 
     private final TradingService tradingService;
+    private final ExecutionQueryService executions;
 
     @PostMapping
     @Operation(summary = "Place order")
@@ -62,6 +64,14 @@ public class TradingController {
                     @AuthenticationPrincipal String principal) {
         com.nextrade.common.identifier.UserId userId = com.nextrade.common.identifier.UserId.of(UUID.fromString(principal));
         return ResponseEntity.ok(tradingService.getOrderHistory(userId, status, page, size));
+    }
+
+    @GetMapping("/{orderId}/executions")
+    @Operation(summary = "List persisted executions for an owned order")
+    public ResponseEntity<List<com.nextrade.contracts.trading.TradeResponse>> getExecutions(
+            @PathVariable UUID orderId, @AuthenticationPrincipal String principal) {
+        com.nextrade.common.identifier.UserId userId = com.nextrade.common.identifier.UserId.of(UUID.fromString(principal));
+        return ResponseEntity.ok(executions.getExecutions(orderId, userId));
     }
 
 }

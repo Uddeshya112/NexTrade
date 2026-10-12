@@ -1,7 +1,7 @@
-# NexTrade - Algorithmic Trading Platform
+# NexTrade
 
 ## Overview
-NexTrade is a production-grade algorithmic trading platform built with Java 21, Spring Boot 3.2, and JavaFX 21.
+NexTrade is a paper-trading workspace with a Java 21 / Spring Boot API, a Next.js web client, and a JavaFX desktop client. Market data is simulated or supplied by an attributed third-party widget; the app does not connect to a brokerage or place live trades.
 
 ## Architecture
 - **nextrade-common**: Shared kernel (value objects, identifiers, enums, events)
@@ -18,32 +18,46 @@ NexTrade is a production-grade algorithmic trading platform built with Java 21, 
 
 ### Prerequisites
 - Java 21
-- Maven 3.9+
+- Maven 3.9+ (the repository does not include Maven Wrapper scripts)
+- Node.js 22 and npm for the web client
 - Docker & Docker Compose
-- PostgreSQL 16 (via Docker)
-- Redis 7 (via Docker)
-- Kafka 3.6 (via Docker)
+- PostgreSQL 16 (provided by Docker Compose)
+- A Supabase project for web authentication
 
 ### Build
 ```bash
-./mvnw clean install -DskipTests
+mvn clean verify
 ```
 
 ### Run Tests
 ```bash
-./mvnw test
-./mvnw verify -pl nextrade-integration-tests
+mvn test
+mvn verify -pl nextrade-integration-tests -am
 ```
 
-### Run Locally with Docker
+### Run the API locally with Docker
+
+Copy `.env.example` to `.env`, set a unique `POSTGRES_PASSWORD`, and provide the Supabase project URL and publishable key before starting the stack:
+
 ```bash
-docker compose -f docker-compose.prod.yml up -d
+docker compose up -d --build
+```
+
+### Run the web client
+
+In a second terminal:
+
+```bash
+cd nextrade-web
+cp .env.example .env.local
+npm ci
+npm run dev
 ```
 
 ### Run JavaFX Client
 ```bash
 cd nextrade-fx-client
-./mvnw javafx:run
+mvn javafx:run
 ```
 
 ## Configuration
@@ -74,24 +88,24 @@ Environment variables:
 ## Testing
 ```bash
 # Unit tests
-./mvnw test
+mvn test
 
 # Integration tests (requires Docker)
-./mvnw verify -pl nextrade-integration-tests
+mvn verify -pl nextrade-integration-tests -am
 
 # Architecture tests
-./mvnw test -pl nextrade-integration-tests -Dtest=ArchitectureRulesTest
+mvn test -pl nextrade-integration-tests -Dtest=ArchitectureRulesTest
 
 # Property-based tests
-./mvnw test -pl nextrade-engine -Dtest=OrderBookPropertyTest
+mvn test -pl nextrade-engine -Dtest=OrderBookPropertyTest
 
 # Concurrency tests
-./mvnw test -pl nextrade-engine -Dtest=MatchingEngineConcurrencyTest
+mvn test -pl nextrade-engine -Dtest=MatchingEngineConcurrencyTest
 ```
 
 ## Docker Deployment
 ```bash
-docker compose -f docker-compose.prod.yml up -d
+docker compose up -d --build
 ```
 
 ## License

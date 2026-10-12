@@ -33,7 +33,7 @@ class SimulatedQuoteDeliveryTest {
         assertTrue(response.quoteAvailable());
         assertEquals("SIMULATED", response.quote().mode());
         assertEquals("NexTrade in-memory simulation engine", response.quote().source());
-        assertEquals(new BigDecimal("123.45"), response.quote().price().value());
+        assertEquals("123.45", response.quote().last());
         assertNotNull(response.quote().asOf());
     }
 
@@ -42,11 +42,17 @@ class SimulatedQuoteDeliveryTest {
         var instrument = Fixture.instrument();
         MarketSimulationEngine engine = new MarketSimulationEngine();
         SimpMessagingTemplate messaging = mock(SimpMessagingTemplate.class);
-        new MarketQuoteWebSocketPublisher(engine, messaging);
+        MarketDataService market = new MarketDataService(engine);
+        new MarketQuoteWebSocketPublisher(market, messaging);
         Price price = Fixture.price("99.50");
 
         engine.updatePrice(instrument.id(), price);
 
-        verify(messaging).convertAndSend(eq("/topic/market/" + instrument.id().asString()), isA(MarketSimulationEngine.MarketQuote.class));
+        var payload = org.mockito.ArgumentCaptor.forClass(Object.class);
+        verify(messaging).convertAndSend(eq("/topic/market/" + instrument.id().asString()), (Object) payload.capture());
+        assertInstanceOf(com.nextrade.contracts.trading.MarketQuote.class, payload.getValue());
+        var quote = (com.nextrade.contracts.trading.MarketQuote) payload.getValue();
+        assertEquals("SIMULATED", quote.mode());
+        assertEquals("99.50", quote.last());
     }
 }

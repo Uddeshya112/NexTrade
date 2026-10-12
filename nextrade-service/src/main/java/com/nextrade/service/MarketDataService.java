@@ -2,24 +2,31 @@ package com.nextrade.service;
 
 import com.nextrade.common.identifier.Identifier;
 import com.nextrade.common.valueobject.Price;
+import com.nextrade.contracts.trading.MarketQuote;
 import com.nextrade.engine.market.MarketSimulationEngine;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 
 @Service
-@RequiredArgsConstructor
 public class MarketDataService {
 
     private final MarketSimulationEngine marketSimulationEngine;
+    private final List<Consumer<MarketQuote>> listeners = new CopyOnWriteArrayList<>();
+
+    public MarketDataService(MarketSimulationEngine marketSimulationEngine) {
+        this.marketSimulationEngine = marketSimulationEngine;
+        marketSimulationEngine.addPriceUpdateListener(this::onPriceUpdate);
+    }
 
     public Price getCurrentPrice(com.nextrade.common.identifier.InstrumentId instrumentId) {
         return marketSimulationEngine.getCurrentPrice(instrumentId);
     }
 
-    public MarketSimulationEngine.MarketQuote getQuote(com.nextrade.common.identifier.InstrumentId instrumentId) {
-        return marketSimulationEngine.getQuote(instrumentId);
+    public MarketQuote getQuote(com.nextrade.common.identifier.InstrumentId instrumentId) {
+        return toContract(marketSimulationEngine.getQuote(instrumentId));
     }
 
     public Map<com.nextrade.common.identifier.InstrumentId, Price> getCurrentPrices(Set<com.nextrade.common.identifier.InstrumentId> instrumentIds) {
@@ -32,6 +39,17 @@ public class MarketDataService {
     }
 
     public void onPriceUpdate(com.nextrade.engine.market.MarketSimulationEngine.PriceUpdate update) {
-        // Quote reads are served directly from the simulator's timestamped snapshot.
+        MarketQuote quote = toContract(update.quote());
+        if (quote != null) listeners.forEach(listener -> listener.accept(quote));
+    }
+
+    public void addQuoteUpdateListener(Consumer<MarketQuote> listener) {
+        listeners.add(Objects.requireNonNull(listener, "listener"));
+    }
+
+    private static MarketQuote toContract(MarketSimulationEngine.MarketQuote quote) {
+        if (quote == null) return null;
+        return new MarketQuote(quote.instrumentId().asString(), null, null,
+                quote.price().value().toPlainString(), quote.mode(), quote.source(), quote.asOf().toString());
     }
 }

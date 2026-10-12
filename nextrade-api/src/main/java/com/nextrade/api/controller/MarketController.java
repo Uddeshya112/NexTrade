@@ -4,6 +4,7 @@ import com.nextrade.domain.instrument.Instrument;
 import com.nextrade.domain.repository.InstrumentRepository;
 import com.nextrade.common.valueobject.Price;
 import com.nextrade.service.MarketDataService;
+import com.nextrade.contracts.trading.MarketQuote;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/market")
@@ -25,18 +27,19 @@ public class MarketController {
 
     @GetMapping("/prices")
     @Operation(summary = "Get current prices for instruments")
-    public ResponseEntity<Map<com.nextrade.common.identifier.InstrumentId, Price>> getPrices(@RequestParam List<com.nextrade.common.identifier.InstrumentId> instruments) {
-        return ResponseEntity.ok(marketDataService.getCurrentPrices(Set.copyOf(instruments)));
+    public ResponseEntity<Map<com.nextrade.common.identifier.InstrumentId, Price>> getPrices(@RequestParam List<UUID> instruments) {
+        return ResponseEntity.ok(marketDataService.getCurrentPrices(instruments.stream()
+                .map(com.nextrade.common.identifier.InstrumentId::of).collect(java.util.stream.Collectors.toSet())));
     }
 
     @GetMapping("/quotes")
     @Operation(summary = "Get timestamped simulated quotes; absent symbols have no quote")
-    public ResponseEntity<Map<com.nextrade.common.identifier.InstrumentId, com.nextrade.engine.market.MarketSimulationEngine.MarketQuote>> getQuotes(
-            @RequestParam List<com.nextrade.common.identifier.InstrumentId> instruments) {
-        Map<com.nextrade.common.identifier.InstrumentId, com.nextrade.engine.market.MarketSimulationEngine.MarketQuote> quotes = new java.util.HashMap<>();
-        for (var id : Set.copyOf(instruments)) {
+    public ResponseEntity<Map<String, MarketQuote>> getQuotes(
+            @RequestParam List<UUID> instruments) {
+        Map<String, MarketQuote> quotes = new java.util.HashMap<>();
+        for (var id : instruments.stream().map(com.nextrade.common.identifier.InstrumentId::of).collect(java.util.stream.Collectors.toSet())) {
             var quote = marketDataService.getQuote(id);
-            if (quote != null) quotes.put(id, quote);
+            if (quote != null) quotes.put(id.asString(), quote);
         }
         return ResponseEntity.ok(Map.copyOf(quotes));
     }
