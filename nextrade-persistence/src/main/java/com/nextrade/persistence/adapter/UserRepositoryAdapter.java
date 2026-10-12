@@ -41,6 +41,12 @@ public class UserRepositoryAdapter implements UserRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Optional<User> findByUsernameOrEmail(String usernameOrEmail) {
+        return jpaRepository.findByUsernameOrEmail(usernameOrEmail).map(this::toDomain);
+    }
+
+    @Override
     public User save(User user) {
         UserJpaEntity entity = jpaRepository.findById(user.id().value()).orElseGet(UserJpaEntity::new);
         entity.setId(user.id().value());

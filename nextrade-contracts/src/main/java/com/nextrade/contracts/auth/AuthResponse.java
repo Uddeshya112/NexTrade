@@ -5,7 +5,7 @@ public sealed interface AuthResponse permits AuthResponse.Success, AuthResponse.
     record Success(String accessToken, String refreshToken, String userId, String role, String sessionId)
             implements AuthResponse { }
 
-    record PendingVerification(String userId, String message) implements AuthResponse { }
+    record PendingVerification(String userId, String selector, boolean deliveryConfigured, String message) implements AuthResponse { }
 
     record Failure(String code, String message) implements AuthResponse { }
 
@@ -17,6 +17,7 @@ public sealed interface AuthResponse permits AuthResponse.Success, AuthResponse.
     record ResetPasswordRequest(String token, String newPassword) { }
     record ChangePasswordRequest(String currentPassword, String newPassword) { }
     record VerifyEmailRequest(String selector, String code) { }
+    record ResendVerificationRequest(String email) { }
 
     sealed interface TokenVerificationResponse permits TokenVerificationResponse.Valid, TokenVerificationResponse.Invalid {
         record Valid(boolean valid, String message) implements TokenVerificationResponse { }

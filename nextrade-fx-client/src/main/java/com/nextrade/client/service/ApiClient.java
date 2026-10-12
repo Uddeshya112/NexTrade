@@ -92,7 +92,8 @@ public final class ApiClient {
                         root.path("userId").asText(""), root.path("role").asText("TRADER"), root.path("sessionId").asText(""));
             }
             if (response.statusCode() >= 200 && response.statusCode() < 300 && root.hasNonNull("userId")) {
-                return new AuthResponse.PendingVerification(root.path("userId").asText(), root.path("message").asText("Verification required"));
+                return new AuthResponse.PendingVerification(root.path("userId").asText(), root.path("selector").asText(""),
+                        root.path("deliveryConfigured").asBoolean(false), root.path("message").asText("Verification required"));
             }
             return new AuthResponse.Failure(root.path("code").asText("HTTP_" + response.statusCode()),
                     root.path("message").asText("Authentication request failed"));

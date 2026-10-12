@@ -52,10 +52,20 @@ JWT_SECRET=<at-least-32-random-bytes>
 JWT_KEY_ID_CURRENT=key-1
 CORS_ALLOWED_ORIGINS=https://<your-vercel-domain>
 MANAGEMENT_HEALTH_DETAILS=never
+NEXTRADE_EMAIL_VERIFICATION_ENABLED=true
+NEXTRADE_MAIL_FROM=<verified-sender-address>
+SPRING_MAIL_HOST=<smtp-host>
+SPRING_MAIL_PORT=587
+SPRING_MAIL_USERNAME=<smtp-username>
+SPRING_MAIL_PASSWORD=<smtp-password>
+SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH=true
+SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=true
 ```
 
 Use the exact session-pooler host from the Supabase dashboard's **Connect** dialog; the shared session pooler uses port `5432`, database `postgres`, and username `postgres.<project-ref>`. The Docker entrypoint accepts either the JDBC URL shown above or Supabase's native `postgres://` / `postgresql://` connection URI, converting it to JDBC form and removing any embedded user info. Keep the username and password in the separate required environment variables, and keep credentials and JWT secrets only in the API host's secret manager. The NexTrade Supabase project has migrations V1–V8 recorded and its existing schema has no Flyway history table. The production profile therefore baselines an existing schema at V7, then applies V8 (which creates its indexes with `IF NOT EXISTS`); on a fresh empty database Flyway runs V1 onward. Do not point this service at another existing database without reviewing its schema and migration history first.
 
+Account verification is required. Add the SMTP variables above in Render's secret environment settings using credentials from your mail provider and a sender address verified with that provider. Registration and resend return a verification code by email; users enter it in the sign-in dialog. Without SMTP, account registration stays pending and cannot sign in. Existing pending accounts can request a fresh code from the sign-in dialog after SMTP is configured.
+
 ## Current service limits
 
-The UI exposes the parts that currently work: API status, configured instruments, and account sign-in. Email verification/reset has no email transport, auth sessions/challenges are in memory and are lost on restart, prices have no external provider, portfolio accounting is incomplete, and order execution does not reserve/settle cash or positions. Registration therefore cannot complete through a normal user email flow, and order placement is not safe for live use. Add durable session/challenge stores, an email provider, a market data provider, and transactional account/risk settlement before production trading.
+The UI exposes the parts that currently work: API status, configured instruments, and account sign-in. Email verification supports SMTP when configured; password reset still has no delivery flow. Auth sessions/challenges are in memory and are lost on restart, prices have no external provider, portfolio accounting is incomplete, and order execution does not reserve/settle cash or positions. Order placement is not safe for live use. Add durable session/challenge stores, password-reset email delivery, a market data provider, and transactional account/risk settlement before production trading.

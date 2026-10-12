@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 type Instrument = { id: string; symbol: string; name: string; exchange: string; currency: string; tradeable: boolean };
-type AuthResult = { type?: string; accessToken?: string; refreshToken?: string; userId?: string; message?: string; code?: string };
+type AuthResult = { type?: string; accessToken?: string; refreshToken?: string; userId?: string; selector?: string; deliveryConfigured?: boolean; message?: string; code?: string };
 
 const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080").replace(/\/$/, "");
 const authChanged = "nextrade-auth-change";
@@ -41,6 +41,10 @@ export default function Home() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [registering, setRegistering] = useState(false);
+  const [verificationPending, setVerificationPending] = useState(false);
+  const [verificationRequired, setVerificationRequired] = useState(false);
+  const [verificationSelector, setVerificationSelector] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
   const signedIn = useSyncExternalStore(subscribeToAuth, hasStoredSession, () => false);
 
   useEffect(() => {
@@ -58,6 +62,16 @@ export default function Home() {
   async function submitAuth(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setNotice("");
     try {
+      if (verificationPending) {
+        await api<void>("/api/v1/auth/verify-email", { method: "POST", body: JSON.stringify({ selector: verificationSelector, code: verificationCode }) });
+        const result = await api<AuthResult>("/api/v1/auth/login", { method: "POST", body: JSON.stringify({ username: email, password }) });
+        if (result.accessToken) {
+          localStorage.setItem("nextrade.accessToken", result.accessToken);
+          if (result.refreshToken) localStorage.setItem("nextrade.refreshToken", result.refreshToken);
+          window.dispatchEvent(new Event(authChanged)); setVerificationPending(false); setAuthOpen(false); setNotice("Your email is verified. You’re signed in.");
+        }
+        return;
+      }
       const result = await api<AuthResult>(`/api/v1/auth/${registering ? "register" : "login"}`, {
         method: "POST", body: JSON.stringify(registering ? { username: email.split("@")[0], email, password } : { username: email, password }),
       });
@@ -67,8 +81,25 @@ export default function Home() {
         window.dispatchEvent(new Event(authChanged)); setAuthOpen(false); setNotice("You’re signed in.");
       } else {
         setNotice(result.message ?? result.code ?? "Check the details and try again.");
+        if (registering && result.selector && result.deliveryConfigured) {
+          setVerificationSelector(result.selector); setVerificationPending(true); setVerificationCode("");
+        }
       }
-    } catch (error) { setNotice(error instanceof Error ? error.message : "Could not connect to NexTrade."); }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not connect to NexTrade.";
+      setNotice(message);
+      if (!registering && message.toLowerCase().includes("verify your email")) { setVerificationRequired(true); setVerificationPending(false); }
+    }
+    finally { setBusy(false); }
+  }
+
+  async function resendVerification() {
+    setBusy(true); setNotice("");
+    try {
+      const result = await api<AuthResult>("/api/v1/auth/resend-verification", { method: "POST", body: JSON.stringify({ email }) });
+      setNotice(result.message ?? "Check your inbox.");
+      if (result.selector && result.deliveryConfigured) { setVerificationSelector(result.selector); setVerificationPending(true); setVerificationCode(""); }
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Could not resend the verification code."); }
     finally { setBusy(false); }
   }
 
@@ -123,6 +154,6 @@ export default function Home() {
     </section>
 
     {notice && <div className="toast" role="status" onClick={() => setNotice("")}>{notice}<button aria-label="Dismiss">×</button></div>}
-    {authOpen && <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setAuthOpen(false); }}><section className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title"><button className="modal-close" onClick={() => setAuthOpen(false)} aria-label="Close">×</button><div className="modal-brand">N<span>.</span></div><p className="section-kicker">YOUR MARKET WORKSPACE</p><h2 id="auth-title">{registering ? "Create your account" : "Welcome back"}</h2><p className="modal-copy">{registering ? "Set up your NexTrade access." : "Sign in to continue to your workspace."}</p><form onSubmit={submitAuth}><label>Email address<input type="email" autoComplete="username" required value={email} onChange={event => setEmail(event.target.value)} placeholder="you@example.com" /></label><label>Password<input type="password" autoComplete={registering ? "new-password" : "current-password"} required minLength={8} value={password} onChange={event => setPassword(event.target.value)} placeholder="At least 8 characters" /></label><button className="button button-dark submit-button" disabled={busy}>{busy ? "Please wait…" : registering ? "Create account ↗" : "Sign in ↗"}</button></form>{notice && <p className="form-notice" role="alert">{notice}</p>}<p className="switch-auth">{registering ? "Already have an account?" : "New to NexTrade?"} <button onClick={() => { setRegistering(!registering); setNotice(""); }}>{registering ? "Sign in" : "Create an account"}</button></p>{registering && <small className="verification-note">Email verification requires an email provider configured by the service administrator.</small>}</section></div>}
+    {authOpen && <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setAuthOpen(false); }}><section className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title"><button className="modal-close" onClick={() => setAuthOpen(false)} aria-label="Close">×</button><div className="modal-brand">N<span>.</span></div><p className="section-kicker">YOUR MARKET WORKSPACE</p><h2 id="auth-title">{verificationPending ? "Verify your email" : registering ? "Create your account" : "Welcome back"}</h2><p className="modal-copy">{verificationPending ? `Enter the six-digit code sent to ${email}.` : registering ? "Set up your NexTrade access." : "Sign in to continue to your workspace."}</p><form onSubmit={submitAuth}><label>Email address<input type="email" autoComplete="username" required value={email} onChange={event => setEmail(event.target.value)} placeholder="you@example.com" /></label>{verificationPending ? <label>Verification code<input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required value={verificationCode} onChange={event => setVerificationCode(event.target.value)} placeholder="6-digit code" /></label> : <label>Password<input type="password" autoComplete={registering ? "new-password" : "current-password"} required minLength={8} value={password} onChange={event => setPassword(event.target.value)} placeholder="At least 8 characters" /></label>}<button className="button button-dark submit-button" disabled={busy}>{busy ? "Please wait…" : verificationPending ? "Verify and sign in ↗" : registering ? "Create account ↗" : "Sign in ↗"}</button></form>{notice && <p className="form-notice" role="alert">{notice}</p>}{verificationPending ? <p className="switch-auth">Didn’t get the code? <button disabled={busy} onClick={resendVerification}>Resend code</button><br /><button onClick={() => { setVerificationPending(false); setNotice(""); }}>Back to sign in</button></p> : verificationRequired ? <p className="switch-auth">Account not verified? <button disabled={busy} onClick={resendVerification}>Send a verification code</button><br /><button onClick={() => { setVerificationRequired(false); setNotice(""); }}>Back to sign in</button></p> : <p className="switch-auth">{registering ? "Already have an account?" : "New to NexTrade?"} <button onClick={() => { setRegistering(!registering); setVerificationPending(false); setVerificationRequired(false); setNotice(""); }}>{registering ? "Sign in" : "Create an account"}</button></p>}{registering && !verificationPending && <small className="verification-note">We’ll email a verification code before your account can sign in.</small>}</section></div>}
   </main>;
 }

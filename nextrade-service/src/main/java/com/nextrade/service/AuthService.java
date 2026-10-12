@@ -15,6 +15,7 @@ import com.nextrade.service.ports.PasswordHasher;
 import com.nextrade.service.ports.RefreshTokenFactory;
 import com.nextrade.service.ports.SessionRepository;
 import com.nextrade.service.ports.UserClock;
+import com.nextrade.service.ports.VerificationMailer;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -30,10 +31,12 @@ public final class AuthService {
     private final UserClock clock;
     private final LoginPolicy loginPolicy;
     private final TokenPolicy tokenPolicy;
+    private final VerificationMailer verificationMailer;
 
     public AuthService(UserRepository users, SessionRepository sessions, AuthChallengeRepository challenges,
                        PasswordHasher passwords, RefreshTokenFactory refreshTokens, EventOutbox outbox,
-                       AccessTokenIssuer accessTokens, UserClock clock, LoginPolicy loginPolicy, TokenPolicy tokenPolicy) {
+                       AccessTokenIssuer accessTokens, UserClock clock, LoginPolicy loginPolicy, TokenPolicy tokenPolicy,
+                       VerificationMailer verificationMailer) {
         this.users = users;
         this.sessions = sessions;
         this.challenges = challenges;
@@ -44,6 +47,7 @@ public final class AuthService {
         this.clock = clock;
         this.loginPolicy = loginPolicy;
         this.tokenPolicy = tokenPolicy;
+        this.verificationMailer = verificationMailer;
     }
 
     public AuthResult register(String username, String email, String rawPassword) {
@@ -58,11 +62,46 @@ public final class AuthService {
         challenges.createVerification(user.id(), selector, Hashing.sha256(code),
                 clock.now().plus(tokenPolicy.verificationTtl()), 5);
         outbox.appendAll(user.drainEvents());
-        return new AuthResult.Pending(user.id(), "Verification challenge created; email delivery must be configured");
+        if (verificationMailer.isConfigured()) {
+            try {
+                verificationMailer.sendVerification(user.email().value(), user.username().value(), selector, code);
+                return new AuthResult.Pending(user.id(), selector, true, "Verification code sent. Enter it below to activate your account.");
+            } catch (RuntimeException ignored) {
+                return new AuthResult.Pending(user.id(), selector, false, "Account created, but verification email could not be sent. Configure SMTP and resend the code.");
+            }
+        }
+        return new AuthResult.Pending(user.id(), selector, false, "Account created, but email delivery is not configured. Configure SMTP, then resend the code.");
+    }
+
+    public AuthResult resendVerification(String email) {
+        String normalizedEmail = email == null ? "" : email.strip().toLowerCase(java.util.Locale.ROOT);
+        if (normalizedEmail.isEmpty()) return new AuthResult.Failure("INVALID_EMAIL", "Enter your account email");
+        Optional<User> found = users.findByEmail(normalizedEmail);
+        if (found.isEmpty() || found.get().emailVerified()) {
+            return new AuthResult.Pending(null, null, verificationMailer.isConfigured(), "If this address has a pending account, a verification code will be sent.");
+        }
+        User user = found.get();
+        String selector = RandomIds.numericCode(8);
+        String code = RandomIds.numericCode(6);
+        challenges.createVerification(user.id(), selector, Hashing.sha256(code),
+                clock.now().plus(tokenPolicy.verificationTtl()), 5);
+        if (!verificationMailer.isConfigured()) {
+            return new AuthResult.Pending(user.id(), selector, false, "Email delivery is not configured. Ask the service administrator to configure SMTP.");
+        }
+        try {
+            verificationMailer.sendVerification(user.email().value(), user.username().value(), selector, code);
+            return new AuthResult.Pending(user.id(), selector, true, "Verification code sent. Check your inbox.");
+        } catch (RuntimeException ignored) {
+            return new AuthResult.Pending(user.id(), selector, false, "Verification email could not be sent. Try again later.");
+        }
     }
 
     public AuthResult login(String login, String rawPassword) {
-        Optional<User> found = users.findByUsername(login).or(() -> users.findByEmail(login));
+        String identifier = login == null ? "" : login.strip();
+        if (identifier.isEmpty() || rawPassword == null || rawPassword.isEmpty()) {
+            return new AuthResult.Failure("INVALID_CREDENTIALS", "Invalid credentials");
+        }
+        Optional<User> found = users.findByUsernameOrEmail(identifier);
         if (found.isEmpty()) return new AuthResult.Failure("INVALID_CREDENTIALS", "Invalid credentials");
         User user = found.get();
         Instant now = clock.now();

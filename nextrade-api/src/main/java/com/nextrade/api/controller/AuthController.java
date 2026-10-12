@@ -113,10 +113,8 @@ public class AuthController {
 
     @PostMapping("/resend-verification")
     @Operation(summary = "Resend verification email")
-    public ResponseEntity<AuthResponse> resendVerification(@AuthenticationPrincipal String principal) {
-        // The current development setup has no email transport configured; do not pretend a message was sent.
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body(new AuthResponse.Failure("EMAIL_DELIVERY_NOT_CONFIGURED", "Configure an email provider to resend verification messages"));
+    public ResponseEntity<AuthResponse> resendVerification(@Valid @RequestBody AuthResponse.ResendVerificationRequest request) {
+        return ResponseEntity.accepted().body(map(authService.resendVerification(request.email())));
     }
 
     @GetMapping("/me")
@@ -134,7 +132,7 @@ public class AuthController {
                     success.role(), success.sessionId().asString());
         }
         if (result instanceof AuthResult.Pending pending) {
-            return new AuthResponse.PendingVerification(pending.userId().asString(), pending.message());
+            return new AuthResponse.PendingVerification(pending.userId() == null ? "" : pending.userId().asString(), pending.selector(), pending.deliveryConfigured(), pending.message());
         }
         AuthResult.Failure failure = (AuthResult.Failure) result;
         return new AuthResponse.Failure(failure.code(), failure.message());
