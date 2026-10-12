@@ -54,6 +54,8 @@
                     </execution>
                 </executions>
                 <configuration>
+                    <!-- Keep the normal API jar usable as a dependency by the integration-test module. -->
+                    <classifier>exec</classifier>
                     <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>
