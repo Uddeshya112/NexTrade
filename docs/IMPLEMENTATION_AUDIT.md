@@ -66,7 +66,7 @@ Build warnings observed include Java platform-default UTF-8 encoding and JavaFX 
 2. **Portfolio endpoint is guaranteed to fail:** `TradingService.getPortfolioSummary` throws unconditionally. No portfolio UI should imply account values until the ledger/positions path is implemented and reconciled.
 3. **Orders are not a complete paper-trading account flow:** the current order path lacks connected cash/position reservation and persisted fill/settlement reconciliation. The unique index alone does not make client-order retries return the original order.
 4. **Market data paths do not join up:** frontend widgets are third-party embeds; backend prices are in-memory simulation values without mode/source/time fields; no candles or functioning WebSocket publisher were found.
-5. **WebSocket production origin mismatch:** allowed origins in `WebSocketConfig` do not include `https://nex-trade-eight.vercel.app`.
+5. **WebSocket production origin mismatch (resolved):** REST and WebSocket now use the same explicit `CORS_ALLOWED_ORIGINS` configuration. Render still needs the exact production domain set in its environment.
 6. **Deployment remains unproven:** Docker and live database startup/migrations, Supabase auth/email, Vercel deployment, Render health, and end-to-end user flows were not exercised. A green frontend build does not verify these services.
 7. **Documentation/config mismatch:** `README.md` refers to `docker-compose.prod.yml`, which is absent; the present compose file is `docker-compose.yml`. Docker Compose also does not provision Kafka although `application.yml` has a Kafka localhost default.
 8. **Legacy demo bean:** `UserControllerSupport` constructs a no-op-password demo identity. It is not referenced by the active controller code found, but should be removed or isolated before treating the API as production-ready.
@@ -94,7 +94,7 @@ The rows in **Build and validation results** and **Baseline blockers and risks**
 
 ## Audit conclusion
 
-The repository is a substantial Java 21/Spring multi-module paper-trading codebase with a buildable Next.js frontend and a large passing `mvn test` suite. It is **not yet a working end-to-end trading workspace**: the checked-in GitHub CI package command fails, the portfolio endpoint deliberately throws, order accounting is disconnected, and market data is split between third-party browser widgets and an in-memory backend simulator. No production deployment or live database behavior is verified. Per Prompt 0, this audit stops here; no feature implementation was started.
+The repository is a substantial Java 21/Spring multi-module paper-trading codebase with a Next.js frontend. The Maven package and integration verification commands currently pass. Order retry idempotency and original-quantity persistence are implemented. It is **not yet a working end-to-end trading workspace**: the portfolio endpoint deliberately throws, account cash/position accounting and persisted execution settlement are not connected, the UI does not call the backend market/order APIs, and production deployment/database behavior is unverified. This document now records implementation progress beyond the original baseline audit.
 
 ## Current implementation milestone (12 October 2026)
 
