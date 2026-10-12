@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "NexTrade — Market workspace",
-  description: "A clear, focused workspace for following markets and managing your trading activity.",
+  description: "A market observation workspace with attributed market charts, quotes, and headlines.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
