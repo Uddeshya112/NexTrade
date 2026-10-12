@@ -29,6 +29,18 @@ public class MarketController {
         return ResponseEntity.ok(marketDataService.getCurrentPrices(Set.copyOf(instruments)));
     }
 
+    @GetMapping("/quotes")
+    @Operation(summary = "Get timestamped simulated quotes; absent symbols have no quote")
+    public ResponseEntity<Map<com.nextrade.common.identifier.InstrumentId, com.nextrade.engine.market.MarketSimulationEngine.MarketQuote>> getQuotes(
+            @RequestParam List<com.nextrade.common.identifier.InstrumentId> instruments) {
+        Map<com.nextrade.common.identifier.InstrumentId, com.nextrade.engine.market.MarketSimulationEngine.MarketQuote> quotes = new java.util.HashMap<>();
+        for (var id : Set.copyOf(instruments)) {
+            var quote = marketDataService.getQuote(id);
+            if (quote != null) quotes.put(id, quote);
+        }
+        return ResponseEntity.ok(Map.copyOf(quotes));
+    }
+
     @GetMapping("/instruments")
     @Operation(summary = "Get all active instruments")
     public ResponseEntity<List<InstrumentSummary>> getInstruments() {
