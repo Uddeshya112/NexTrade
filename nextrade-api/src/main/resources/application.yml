@@ -90,6 +90,12 @@ nextrade:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
 
 management:
+  # Redis is not provisioned in the Render deployment; the API uses its
+  # in-memory rate-limit store there, so a localhost Redis probe would mark
+  # the otherwise-serving API unhealthy.
+  health:
+    redis:
+      enabled: false
   endpoints:
     web:
       exposure:
