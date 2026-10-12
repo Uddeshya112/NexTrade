@@ -29,7 +29,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable-key-or-legacy-anon-key>
 ```
 
-The Supabase URL and publishable/anon key are public client configuration. They are not service-role secrets. Restrict production redirects in Supabase to the exact Vercel production routes above. For preview deploys, use a separate safe preview configuration or add only the specific preview origins you intend to use.
+If your Supabase dashboard still labels the client key as an anon key, the frontend also accepts `NEXT_PUBLIC_SUPABASE_ANON_KEY` in place of `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Use one name only. The Supabase URL and publishable/anon key are public client configuration. They are not service-role secrets. Never put `service_role` or `sb_secret_` keys in any `NEXT_PUBLIC_` variable. Restrict production redirects in Supabase to the exact Vercel production routes above. For preview deploys, use a separate safe preview configuration or add only the specific preview origins you intend to use.
 
 ## Render API
 
