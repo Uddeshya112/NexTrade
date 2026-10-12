@@ -31,11 +31,6 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
     baseline-version: ${FLYWAY_BASELINE_VERSION:1}
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          jwk-set-uri: ${JWK_SET_URI:}
   threads:
     virtual:
       enabled: true
