@@ -13,8 +13,10 @@ public final class MatchingEngine implements AutoCloseable{
  }
  private final int partitions; private final ExecutorService[] lanes; private final Map<InstrumentId,OrderBook> books=new ConcurrentHashMap<>(); private final AtomicLong processed=new AtomicLong(); private final Consumer<TradeExecution> publisher;
  public MatchingEngine(int partitions,Consumer<TradeExecution> publisher){if(partitions<1)throw new IllegalArgumentException("partitions");this.partitions=partitions;this.publisher=publisher==null?t->{}:publisher;this.lanes=new ExecutorService[partitions];for(int i=0;i<partitions;i++){int n=i;lanes[i]=Executors.newSingleThreadExecutor(r->{Thread t=new Thread(r,"nextrade-engine-"+n);t.setDaemon(true);return t;});}}
- private int lane(InstrumentId id){return Math.floorMod(id.value().hashCode(),partitions);} private OrderBook book(InstrumentId id){return books.computeIfAbsent(id,k->new OrderBook(k,new Price(java.math.BigDecimal.valueOf(0.01),java.math.BigDecimal.valueOf(0.01)),publisher));}
- public CompletableFuture<MatchingResult> place(Order order){return submit(order.instrument().id(),()->{List<TradeExecution> trades=book(order.instrument().id()).process(order);processed.incrementAndGet();return new MatchingResult(order.id(),order.status(),trades,null);});}
+ private int lane(InstrumentId id){return Math.floorMod(id.value().hashCode(),partitions);} private OrderBook book(InstrumentId id){return book(id,new Price(java.math.BigDecimal.valueOf(0.01),java.math.BigDecimal.valueOf(0.01)));} private OrderBook book(InstrumentId id,Price tick){return books.computeIfAbsent(id,k->new OrderBook(k,tick,publisher));}
+ public CompletableFuture<MatchingResult> place(Order order){return submit(order.instrument().id(),()->{List<TradeExecution> trades=book(order.instrument().id(),order.instrument().tickSize()).process(order);processed.incrementAndGet();return new MatchingResult(order.id(),order.status(),trades,null);});}
+ public CompletableFuture<Void> restore(Order order){return submit(order.instrument().id(),()->{book(order.instrument().id(),order.instrument().tickSize()).restore(order);return null;});}
+ public CompletableFuture<Void> seedLastTradePrice(InstrumentId id,Price price){return submit(id,()->{book(id).seedLastTradePrice(price);return null;});}
  public CompletableFuture<Boolean> cancel(InstrumentId instrument,OrderId id){return submit(instrument,()->book(instrument).cancel(id));}
  public CompletableFuture<OrderResult> submit(OrderCommand command){
   if(command instanceof OrderCommand.Cancel cancel){

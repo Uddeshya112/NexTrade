@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
 public class EngineConfiguration {
     @Bean(destroyMethod = "close")
     public MatchingEngine matchingEngine(SettlementService settlements) {
-        return new MatchingEngine(4, execution -> settlements.settle(execution.toTrade()));
+        return new MatchingEngine(4, settlements::settle);
     }
 
     @Bean
